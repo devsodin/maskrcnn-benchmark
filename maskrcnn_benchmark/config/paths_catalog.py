@@ -103,7 +103,18 @@ class DatasetCatalog(object):
         "cityscapes_fine_instanceonly_seg_test_cocostyle": {
             "img_dir": "cityscapes/images",
             "ann_file": "cityscapes/annotations/instancesonly_filtered_gtFine_test.json"
+        },
+        "cvc-clinic": {
+            "img_dir": "cvc-clinic/",
+            "ann_file": "",
+        },
+        "etis-larib":{
+            "img_dir": "cvc-clinic/",
+            "ann_file": "",
         }
+
+
+
     }
 
     @staticmethod
@@ -130,7 +141,32 @@ class DatasetCatalog(object):
                 factory="PascalVOCDataset",
                 args=args,
             )
-        raise RuntimeError("Dataset not available: {}".format(name))
+        elif "cvc-clinic" in name:
+            #TODO change to real things
+            data_dir = DatasetCatalog.DATA_DIR
+            attrs = DatasetCatalog.DATASETS[name]
+            args = dict(
+                data_dir=os.path.join(data_dir, attrs["data_dir"]),
+                annot_file=attrs["ann_file"],
+            )
+            return dict(
+                factory="CVC-Clinic",
+                args=args,
+            )
+        elif "etis-larib" in name:
+            # TODO change to real things
+            data_dir = DatasetCatalog.DATA_DIR
+            attrs = DatasetCatalog.DATASETS[name]
+            args = dict(
+                data_dir=os.path.join(data_dir, attrs["data_dir"]),
+                annot_file=attrs["ann_file"],
+            )
+            return dict(
+                factory="ETIS-Larib",
+                args=args,
+            )
+        else:
+            raise RuntimeError("Dataset not available: {}".format(name))
 
 
 class ModelCatalog(object):
