@@ -1,5 +1,6 @@
 import torch
 from torchvision import transforms as T
+from torch.utils.data.dataset import Dataset
 from PIL import Image
 
 from maskrcnn_benchmark.structures.bounding_box import BoxList
@@ -7,26 +8,23 @@ from maskrcnn_benchmark.structures.segmentation_mask import SegmentationMask
 
 import os
 
-class CVCClinicDataset(coco.CocoDetection):
+class CVCClinicDataset(Dataset):
     CLASSES = (
         "__background__ ",
-        "polyp",
-        "adenoma",
-        "ass",
-        "hiperplasic"
+        "polyp"
     )
 
-    def __init__(self, dataset_folder, split, use_difficult=False, transforms=None):
-        self.root = dataset_folder
-        self.image_set = split
+    def __init__(self, dataset_folder, image_set, use_difficult=False, transforms=None):
+        self.dataset_folder = dataset_folder
+        self.image_set = image_set
         self.keep_difficult = use_difficult
         self.transforms = transforms
 
-        self._annopath = os.path.join(self.root, "Annotations", "%s.xml")
-        self._imgpath = os.path.join(self.root, "JPEGImages", "%s.jpg")
-        self._imgsetpath = os.path.join(self.root, "ImageSets", "Main", "%s.txt")
+        self._image_files = os.path.join(self.dataset_folder, "Images", "%s.png")
+        self._annotations_files = os.path.join(self.dataset_folder, "Annotations", "%s.xml")
+        self._image_sets_files = os.path.join(self.dataset_folder, "ImageSets", "Main", "%s.txt")
 
-        with open(self._imgsetpath % self.image_set) as f:
+        with open(self._image_sets_files % self.image_set) as f:
             self.ids = f.readlines()
         self.ids = [x.strip("\n") for x in self.ids]
         self.id_to_img_map = {k: v for k, v in enumerate(self.ids)}
@@ -37,7 +35,7 @@ class CVCClinicDataset(coco.CocoDetection):
 
     def __getitem__(self, index):
         img_id = self.ids[index]
-        img = Image.open(self._imgpath % img_id).convert("RGB")
+        img = Image.open(self._image_folder % img_id).convert("RGB")
 
         target = self.get_groundtruth(index)
         target = target.clip_to_image(remove_empty=True)
@@ -108,4 +106,4 @@ class CVCClinicDataset(coco.CocoDetection):
         return {"height": im_info[0], "width": im_info[1]}
 
     def map_class_id_to_class_name(self, class_id):
-        return PascalVOCDataset.CLASSES[class_id]
+        return CVCClinicDataset.CLASSES[class_id]
