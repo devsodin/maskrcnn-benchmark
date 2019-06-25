@@ -105,12 +105,16 @@ class DatasetCatalog(object):
             "ann_file": "cityscapes/annotations/instancesonly_filtered_gtFine_test.json"
         },
         "cvc-clinic": {
-            "img_dir": "cvc-clinic/",
-            "ann_file": "",
+            "img_dir": "CVC-VideoClinicDBtrain_valid/images",
+            "ann_file": "CVC-VideoClinicDBtrain_valid/annotations/cvc-clinic.json"
+        },
+        "cvc-clinic-test": {
+            "img_dir": "cvcvideoclinicdbtest/images",
+            "ann_file": "cvcvideoclinicdbtest/annotations/cvc-clinic-test.json"
         },
         "etis-larib":{
-            "img_dir": "cvc-clinic/",
-            "ann_file": "",
+            "img_dir": "ETIS-LaribPolypDB/images",
+            "ann_file": "ETIS-LaribPolypDB/annotations/etis-larib.json",
         }
 
 
@@ -142,19 +146,18 @@ class DatasetCatalog(object):
                 args=args,
             )
         elif "cvc-clinic" in name:
-            #TODO change to real things
             data_dir = DatasetCatalog.DATA_DIR
             attrs = DatasetCatalog.DATASETS[name]
             args = dict(
-                data_dir=os.path.join(data_dir, attrs["data_dir"]),
-                annot_file=attrs["ann_file"],
+                root=os.path.join(data_dir, attrs["data_dir"]),
+                annotation_file=attrs["ann_file"],
             )
             return dict(
-                factory="CVC-Clinic",
+                factory="CVCClinicDataset",
                 args=args,
             )
         elif "etis-larib" in name:
-            # TODO change to real things
+            # TODO change parameters when implemented
             data_dir = DatasetCatalog.DATA_DIR
             attrs = DatasetCatalog.DATASETS[name]
             args = dict(
@@ -162,7 +165,7 @@ class DatasetCatalog(object):
                 annot_file=attrs["ann_file"],
             )
             return dict(
-                factory="ETIS-Larib",
+                factory="ETISLaribDataset",
                 args=args,
             )
         else:
