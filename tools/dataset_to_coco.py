@@ -5,9 +5,10 @@ import pycococreatortools
 import datetime
 
 
-ROOT_DIR = "C:\\Users\\Yael\\Desktop\\CVC-VideoClinicDBtrain_valid"
-IMAGES_DIR = os.path.join(ROOT_DIR,"Images")
-ANNOTATIONS_DIR = os.path.join(ROOT_DIR,"Masks")
+#ROOT_DIR = "C:\\Users\\Yael\\Desktop\\CVC-VideoClinicDBtrain_valid"
+ROOT_DIR = "C:\\Users\\Yael\\Desktop\\ETIS-LaribPolypDB"
+IMAGES_DIR = os.path.join(ROOT_DIR,"images")
+ANNOTATIONS_DIR = os.path.join(ROOT_DIR,"masks")
 MASK_EXTENSION = "_polyp"
 
 
@@ -109,19 +110,38 @@ def cocoize_dataset():
 def rename_images():
     for im in os.listdir(ANNOTATIONS_DIR):
         extension = im.split(".")[1]
-        seq = int(im.split("-")[0])
-        im_number = int(im.split(".")[0].split("-")[1])
 
-        new_name = "{:03d}-{:04d}{}.{}".format(seq,im_number,MASK_EXTENSION,extension)
-        os.rename(os.path.join(ANNOTATIONS_DIR, im),os.path.join(ANNOTATIONS_DIR, new_name))
+        # CVC train-val
+        #seq = int(im.split("-")[0])
+        #im_number = int(im.split(".")[0].split("-")[1])
+        #new_name = "{:03d}-{:04d}{}.{}".format(seq,im_number,MASK_EXTENSION,extension)
+
+        # CVC test
+        # NO HAY MASCARAS
+
+        # ETIS-Larib
+        #im_number = int(im.split(".")[0][1:])
+        #new_name = "{:03d}{}.{}".format(im_number,MASK_EXTENSION, extension)
+
+        #os.rename(os.path.join(ANNOTATIONS_DIR, im),os.path.join(ANNOTATIONS_DIR, new_name))
 
     for im in os.listdir(IMAGES_DIR):
         extension = im.split(".")[1]
+
+        # CVC train-val
+        # CVC test
         seq = int(im.split("-")[0])
         im_number = int(im.split(".")[0].split("-")[1])
-
         new_name = "{:03d}-{:04d}.{}".format(seq,im_number,extension)
+
+
+
+        # ETIS-Larib
+        #im_number = int(im.split(".")[0])
+        #new_name = "{:03d}.{}".format(im_number,extension)
+
         os.rename(os.path.join(IMAGES_DIR, im),os.path.join(IMAGES_DIR, new_name))
+
 
 
 if __name__ == '__main__':
@@ -130,6 +150,7 @@ if __name__ == '__main__':
 
     mask_folder = os.path.join(dataset_folder, "Masks")
 
-    cocoize_dataset()
-    #generate_bboxes(mask_folder)
+    rename_images()
+
+    #cocoize_dataset()
 
