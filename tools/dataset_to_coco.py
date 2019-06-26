@@ -3,9 +3,10 @@ from PIL import Image
 import numpy as np
 import pycococreatortools
 import datetime
+import json
 
 # ROOT_DIR = "C:\\Users\\Yael\\Desktop\\CVC-VideoClinicDBtrain_valid"
-ROOT_DIR = "C:\\Users\\Yael\\Desktop\\ETIS-LaribPolypDB"
+ROOT_DIR = "/home/devsodin/Downloads/MaskRCNN/CVC-VideoClinicDBtrain_valid"
 IMAGES_DIR = os.path.join(ROOT_DIR, "images")
 ANNOTATIONS_DIR = os.path.join(ROOT_DIR, "masks")
 MASK_EXTENSION = "_polyp"
@@ -25,6 +26,12 @@ LICENSES = [
         "url": ""
     }
 ]
+
+#IMAGES
+    #id, license, cocourl, flickrurl, width, height, filenmae, date_captured
+
+# ANNOTATIONS
+    # id, category id, iscrowd, segmentation, image_id, area, bbox(x,y,w,h)
 
 CATEGORIES = [
     {
