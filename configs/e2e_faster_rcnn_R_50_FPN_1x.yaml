@@ -22,7 +22,7 @@ MODEL:
     PREDICTOR: "FPNPredictor"
 DATASETS:
   TRAIN: ("cvc-clinic", "cvc-clinic-val")
-  TEST: ("etis-larib",)
+  TEST: ("cvc-clinic-test",)
 DATALOADER:
   SIZE_DIVISIBILITY: 32
 SOLVER:
