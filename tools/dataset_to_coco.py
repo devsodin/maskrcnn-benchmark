@@ -4,12 +4,17 @@ import numpy as np
 
 import datetime
 import json
+
+from cv2 import RETR_LIST
 from pycocotools import mask
 from skimage import measure
+import cv2
 
 
 # ROOT_DIR = "C:\\Users\\Yael\\Desktop\\CVC-VideoClinicDBtrain_valid"
 # ROOT_DIR = "/home/devsodin/Downloads/MaskRCNN/CVC-VideoClinicDBtrain_valid"
+from torch._C import dtype
+
 ROOT_DIR = "c:\\Users\\Yael\\Desktop\\CVC-VideoClinicDBtrain_valid"
 MASK_EXTENSION = "_polyp"
 IMAGES_DIR = os.path.join(ROOT_DIR, "images")
@@ -61,7 +66,7 @@ def generate_bbox(mask):
         w = x_max - x_min
         h = y_max - y_min
 
-        return [x_min, y_min, w, h]
+        return np.array([x_min, y_min, w, h])
 
 
 def get_mask_images(mask_file):
@@ -88,26 +93,38 @@ def get_image_coco_info(image_id, filename, size, license="", cocourl="", flicku
 
 def get_annotations_coco_image(segmentation_id, image_id, category_info, binary_mask):
     bbox = generate_bbox(binary_mask)
-    segmentation = measure.find_contours(binary_mask,0.5)
+    _, contours,_ = cv2.findContours(binary_mask,cv2.RETR_LIST,cv2.CHAIN_APPROX_NONE)
+    segmentation = []
+    for seg in contours:
+        el_seg = []
+        seg = np.unique(seg,axis=0)
+        for dot in seg:
+            dot = dot.astype(int)
+            el_seg += dot.tolist()[0]
+        segmentation.append(el_seg)
+
+
     area = mask.area(mask.encode(np.asfortranarray(binary_mask.astype(np.uint8))))
     iscrowd = 1 if category_info["is_crowd"] else 0
 
     if bbox is not None and area > 1 and segmentation is not None:
+        bbox = bbox.tolist()
 
-        segmentation = segmentation[0].ravel().tolist()
+
 
         annot =  {
             # id, category id, iscrowd, segmentation, image_id, area, bbox(x,y,w,h)
 
             "segmentation": segmentation,
             "iscrowd": iscrowd,
-            "area": area,
+            "area": float(area),
             "image_id": image_id,
             "bbox": bbox,
             "category_id": category_info['id'],
             "id": segmentation_id
         }
         print(annot)
+
         return annot
 
     else:

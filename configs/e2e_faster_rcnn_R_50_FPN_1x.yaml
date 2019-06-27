@@ -21,7 +21,7 @@ MODEL:
     FEATURE_EXTRACTOR: "FPN2MLPFeatureExtractor"
     PREDICTOR: "FPNPredictor"
 DATASETS:
-  TRAIN: ("cvc-clinic", "cvc-clinic-val")
+  TRAIN: (""cvc-clinic-train", "cvc-clinic-val")
   TEST: ("cvc-clinic-test",)
 DATALOADER:
   SIZE_DIVISIBILITY: 32

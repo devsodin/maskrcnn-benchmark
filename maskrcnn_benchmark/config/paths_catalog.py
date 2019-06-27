@@ -104,9 +104,13 @@ class DatasetCatalog(object):
             "img_dir": "cityscapes/images",
             "ann_file": "cityscapes/annotations/instancesonly_filtered_gtFine_test.json"
         },
-        "cvc-clinic": {
+        "cvc-clinic-train": {
             "img_dir": "CVC-VideoClinicDBtrain_valid/images",
-            "ann_file": "CVC-VideoClinicDBtrain_valid/annotations/cvc-clinic.json"
+            "ann_file": "CVC-VideoClinicDBtrain_valid/annotations/train.json"
+        },
+        "cvc-clinic-val": {
+            "img_dir": "CVC-VideoClinicDBtrain_valid/images",
+            "ann_file": "CVC-VideoClinicDBtrain_valid/annotations/val.json"
         },
         "cvc-clinic-test": {
             "img_dir": "cvcvideoclinicdbtest/images",
@@ -157,7 +161,7 @@ class DatasetCatalog(object):
                 args=args,
             )
         elif "etis-larib" in name:
-            # TODO change parameters when implemented
+            # TODO change parameters when implemented - USING ONLY CVC-CLINIC
             data_dir = DatasetCatalog.DATA_DIR
             attrs = DatasetCatalog.DATASETS[name]
             args = dict(
