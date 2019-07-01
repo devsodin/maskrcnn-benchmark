@@ -23,7 +23,7 @@ def has_valid_annotation(anno):
 
 
 class CVCClinicDataset(CocoDetection):
-    def __init__(self, annotation_file, root, remove_unannotated_images, transforms=None):
+    def __init__(self, annotation_file, root, remove_unannotated_images=False, transforms=None):
         super(CVCClinicDataset, self).__init__(root, annotation_file)
 
         self.ids = sorted(self.ids)

@@ -15,7 +15,7 @@ import cv2
 # ROOT_DIR = "/home/devsodin/Downloads/MaskRCNN/CVC-VideoClinicDBtrain_valid"
 from torch._C import dtype
 
-ROOT_DIR = "c:\\Users\\Yael\\Desktop\\CVC-VideoClinicDBtrain_valid"
+ROOT_DIR = "../datasets/CVC-VideoClinicDBtrain_valid"
 MASK_EXTENSION = "_polyp"
 IMAGES_DIR = os.path.join(ROOT_DIR, "images")
 ANNOTATIONS_DIR = os.path.join(ROOT_DIR, "masks")
@@ -80,11 +80,11 @@ def get_image_coco_info(image_id, filename, size, license="", cocourl="", flicku
     info =  {
         "id": image_id,
         "license": license,
-        "cocourl": cocourl,
-        "flickrurl": flickurl,
+        "coco_url": cocourl,
+        "flickr_url": flickurl,
         "width": size[0],
         "height": size[1],
-        "filename": filename,
+        "file_name": filename,
         "date_captured": datacaptured
     }
     print(info)
@@ -93,7 +93,7 @@ def get_image_coco_info(image_id, filename, size, license="", cocourl="", flicku
 
 def get_annotations_coco_image(segmentation_id, image_id, category_info, binary_mask):
     bbox = generate_bbox(binary_mask)
-    _, contours,_ = cv2.findContours(binary_mask,cv2.RETR_LIST,cv2.CHAIN_APPROX_NONE)
+    contours,_ = cv2.findContours(binary_mask,cv2.RETR_LIST,cv2.CHAIN_APPROX_NONE)
     segmentation = []
     for seg in contours:
         el_seg = []

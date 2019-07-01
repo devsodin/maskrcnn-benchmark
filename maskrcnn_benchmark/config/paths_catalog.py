@@ -105,19 +105,19 @@ class DatasetCatalog(object):
             "ann_file": "cityscapes/annotations/instancesonly_filtered_gtFine_test.json"
         },
         "cvc-clinic-train": {
-            "img_dir": "CVC-VideoClinicDBtrain_valid/images",
+            "data_dir": "CVC-VideoClinicDBtrain_valid/images",
             "ann_file": "CVC-VideoClinicDBtrain_valid/annotations/train.json"
         },
         "cvc-clinic-val": {
-            "img_dir": "CVC-VideoClinicDBtrain_valid/images",
+            "data_dir": "CVC-VideoClinicDBtrain_valid/images",
             "ann_file": "CVC-VideoClinicDBtrain_valid/annotations/val.json"
         },
         "cvc-clinic-test": {
-            "img_dir": "cvcvideoclinicdbtest/images",
+            "data_dir": "cvcvideoclinicdbtest/images",
             "ann_file": "cvcvideoclinicdbtest/annotations/cvc-clinic-test.json"
         },
         "etis-larib":{
-            "img_dir": "ETIS-LaribPolypDB/images",
+            "data_dir": "ETIS-LaribPolypDB/images",
             "ann_file": "ETIS-LaribPolypDB/annotations/etis-larib.json",
         }
 
@@ -154,7 +154,7 @@ class DatasetCatalog(object):
             attrs = DatasetCatalog.DATASETS[name]
             args = dict(
                 root=os.path.join(data_dir, attrs["data_dir"]),
-                annotation_file=attrs["ann_file"],
+                annotation_file=os.path.join(data_dir, attrs["ann_file"]),
             )
             return dict(
                 factory="CVCClinicDataset",
@@ -166,7 +166,7 @@ class DatasetCatalog(object):
             attrs = DatasetCatalog.DATASETS[name]
             args = dict(
                 data_dir=os.path.join(data_dir, attrs["data_dir"]),
-                annot_file=attrs["ann_file"],
+                annot_file=os.path.join(data_dir, attrs["ann_file"]),
             )
             return dict(
                 factory="ETISLaribDataset",
