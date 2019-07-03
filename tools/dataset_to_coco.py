@@ -10,12 +10,14 @@ from pycocotools import mask
 from skimage import measure
 import cv2
 
+import matplotlib.pyplot as plt
+
 
 # ROOT_DIR = "C:\\Users\\Yael\\Desktop\\CVC-VideoClinicDBtrain_valid"
 # ROOT_DIR = "/home/devsodin/Downloads/MaskRCNN/CVC-VideoClinicDBtrain_valid"
 from torch._C import dtype
 
-ROOT_DIR = "../datasets/CVC-VideoClinicDBtrain_valid"
+ROOT_DIR = "datasets/CVC-VideoClinicDBtrain_valid"
 MASK_EXTENSION = "_polyp"
 IMAGES_DIR = os.path.join(ROOT_DIR, "images")
 ANNOTATIONS_DIR = os.path.join(ROOT_DIR, "masks")
@@ -59,10 +61,10 @@ def generate_bbox(mask):
     if len(coors[0]) == 0:
         return None
     else:
-        x_min = np.min(coors[0])
-        x_max = np.max(coors[0])
-        y_min = np.min(coors[1])
-        y_max = np.max(coors[1])
+        x_min = np.min(coors[1])
+        x_max = np.max(coors[1])
+        y_min = np.min(coors[0])
+        y_max = np.max(coors[0])
         w = x_max - x_min
         h = y_max - y_min
 
@@ -109,8 +111,6 @@ def get_annotations_coco_image(segmentation_id, image_id, category_info, binary_
 
     if bbox is not None and area > 1 and segmentation is not None:
         bbox = bbox.tolist()
-
-
 
         annot =  {
             # id, category id, iscrowd, segmentation, image_id, area, bbox(x,y,w,h)
@@ -175,7 +175,7 @@ def dataset_to_coco(root_folder, info, licenses, categories, seqs, out_name):
 
         image_id = image_id + 1
 
-    with open(os.path.join(ROOT_DIR, out_name), "w") as f:
+    with open(os.path.join(ROOT_DIR,"annotations", out_name), "w") as f:
         json.dump(coco_output, f)
 
 
