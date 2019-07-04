@@ -20,6 +20,7 @@ MODEL:
     POOLER_SAMPLING_RATIO: 2
     FEATURE_EXTRACTOR: "FPN2MLPFeatureExtractor"
     PREDICTOR: "FPNPredictor"
+    NUM_CLASSES: 2
   ROI_MASK_HEAD:
     POOLER_SCALES: (0.25, 0.125, 0.0625, 0.03125)
     FEATURE_EXTRACTOR: "MaskRCNNFPNFeatureExtractor"
@@ -30,6 +31,7 @@ MODEL:
     SHARE_BOX_FEATURE_EXTRACTOR: False
   MASK_ON: True
 DATASETS:
-  TEST: ("coco_2014_minival",)
+  TRAIN: ("cvc-clinic-train",)
+  TEST:("cvc-clinic-val","cvc-clinic-test")
 DATALOADER:
   SIZE_DIVISIBILITY: 32

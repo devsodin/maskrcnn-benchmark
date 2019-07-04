@@ -1,6 +1,7 @@
 MODEL:
   META_ARCHITECTURE: "GeneralizedRCNN"
-  WEIGHT: "catalog://ImageNetPretrained/MSRA/R-50"
+  #WEIGHT: "catalog://ImageNetPretrained/MSRA/R-50"
+  WEIGHT: "pretrained_models/mask_rcnn_R-50-FPN_1x_detectron_no_last_layers.pth"
   BACKBONE:
     CONV_BODY: "R-50-FPN"
   RESNETS:
@@ -20,9 +21,10 @@ MODEL:
     POOLER_SAMPLING_RATIO: 2
     FEATURE_EXTRACTOR: "FPN2MLPFeatureExtractor"
     PREDICTOR: "FPNPredictor"
+    NUM_CLASSES: 2
 DATASETS:
   TRAIN: ("cvc-clinic-train",)
-  TEST: ("cvc-clinic-val",)
+  TEST: ("cvc-clinic-val","cvc-clinic-test")
 DATALOADER:
   SIZE_DIVISIBILITY: 32
 SOLVER:
@@ -30,5 +32,5 @@ SOLVER:
   BASE_LR: 0.0025
   WEIGHT_DECAY: 0.0001
   STEPS: [0, 30000, 40000]
-  MAX_ITER: 60000
+  MAX_ITER: 7500
   IMS_PER_BATCH: 4

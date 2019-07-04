@@ -114,7 +114,7 @@ class DatasetCatalog(object):
         },
         "cvc-clinic-test": {
             "data_dir": "cvcvideoclinicdbtest/images",
-            "ann_file": "cvcvideoclinicdbtest/annotations/cvc-clinic-test.json"
+            "ann_file": "cvcvideoclinicdbtest/annotations/test.json"
         },
         "etis-larib":{
             "data_dir": "ETIS-LaribPolypDB/images",

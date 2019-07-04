@@ -17,13 +17,14 @@ import matplotlib.pyplot as plt
 # ROOT_DIR = "/home/devsodin/Downloads/MaskRCNN/CVC-VideoClinicDBtrain_valid"
 from torch._C import dtype
 
-ROOT_DIR = "datasets/CVC-VideoClinicDBtrain_valid"
+#ROOT_DIR = "datasets/CVC-VideoClinicDBtrain_valid"
+ROOT_DIR = "datasets/cvcvideoclinicdbtest"
 MASK_EXTENSION = "_polyp"
 IMAGES_DIR = os.path.join(ROOT_DIR, "images")
-ANNOTATIONS_DIR = os.path.join(ROOT_DIR, "masks")
+MASKS_DIR = os.path.join(ROOT_DIR, "masks")
 
 INFO = {
-    "description": "CVC-CLINIC Dataset",
+    "description": "CVC-CLINIC Dataset - Test",
     "url": "",
     "version": "1.0",
     "year": 2019,
@@ -75,7 +76,10 @@ def get_mask_images(mask_file):
     def is_annot_from_image(file):
         return mask_file.split(".")[0] in file
 
-    return filter(is_annot_from_image, os.listdir(ANNOTATIONS_DIR))
+    if not os.path.exists(MASKS_DIR):
+        return []
+    else:
+        return filter(is_annot_from_image, os.listdir(MASKS_DIR))
 
 
 def get_image_coco_info(image_id, filename, size, license="", cocourl="", flickurl="", datacaptured=""):
@@ -131,7 +135,7 @@ def get_annotations_coco_image(segmentation_id, image_id, category_info, binary_
         return None
 
 
-def dataset_to_coco(root_folder, info, licenses, categories, seqs, out_name):
+def dataset_to_coco(root_folder, info, licenses, categories, seqs, out_name, has_annotations=True):
 
 
     coco_output = {
@@ -142,14 +146,18 @@ def dataset_to_coco(root_folder, info, licenses, categories, seqs, out_name):
         "annotations": []
     }
 
+    if not has_annotations:
+        coco_output.pop("annotations")
+
     images_folder = os.path.join(root_folder, "images")
-    annotation_folder = os.path.join(root_folder, "masks")
+    masks_folder = os.path.join(root_folder, "masks")
     image_id = 1
     segmentation_id = 1
 
     for file in os.listdir(images_folder):
-        if file[0:3] not in seqs:
-            continue
+        if seqs is not None:
+            if file[0:3] not in seqs:
+                continue
         im_file = os.path.join(images_folder, file)
         im = Image.open(im_file)
 
@@ -159,7 +167,7 @@ def dataset_to_coco(root_folder, info, licenses, categories, seqs, out_name):
         masks = get_mask_images(file)
 
         for mask in masks:
-            mask_file = os.path.join(annotation_folder, mask)
+            mask_file = os.path.join(masks_folder, mask)
 
             class_id = [x['id'] for x in CATEGORIES if x['name'] in mask_file][0]
             category_info = {'id': class_id, 'is_crowd': 'crowd' in mask_file}
@@ -180,7 +188,7 @@ def dataset_to_coco(root_folder, info, licenses, categories, seqs, out_name):
 
 
 def rename_images():
-    for im in os.listdir(ANNOTATIONS_DIR):
+    for im in os.listdir(MASKS_DIR):
         extension = im.split(".")[1]
 
         # CVC train-val
@@ -216,5 +224,6 @@ def rename_images():
 if __name__ == '__main__':
     train_seq = ["{:03d}".format(x) for x in range(1,16)]
     val_seq= ["{:03d}".format(x) for x in range(16, 19)]
-    dataset_to_coco(ROOT_DIR, INFO, LICENSES, CATEGORIES, train_seq, "train.json")
-    dataset_to_coco(ROOT_DIR, INFO, LICENSES, CATEGORIES, val_seq, "val.json")
+    #dataset_to_coco(ROOT_DIR, INFO, LICENSES, CATEGORIES, train_seq, "train.json")
+    #dataset_to_coco(ROOT_DIR, INFO, LICENSES, CATEGORIES, val_seq, "val.json")
+    dataset_to_coco(ROOT_DIR, INFO, LICENSES, CATEGORIES, None, "test.json", has_annotations=False)
