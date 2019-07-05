@@ -9,18 +9,46 @@ import os
 
 def remap_names(csv):
     csv['image'] = csv.image.map(lambda x: "".join(x.split("0")))
+    #csv['image'] = csv.image.map(lambda x: "".join(x.split("0")).split("-")[1].split(".")[0])
     return csv
+
+def delete_seq_code(csv):
+    print(csv['image'])
+    csv['image'] = csv.image.map(lambda x: int(x.split("-")[1].split(".")[0]))
+    print(csv['image'])
+    return csv
+
+def reformat_csvs(detections, split='test'):
+    d = {}
+    seqs = []
+
+    if split == 'val':
+        seqs = range(16, 19)
+    elif split == 'test':
+        seqs = range(1, 19)
+    else:
+        raise ('invalid split - {}'.format(split))
+
+    for seq in seqs:
+        print(seq)
+        seq_rows = detections.loc[detections['image'].str.contains("{:03d}-".format(seq))].copy(deep=True)
+        print(seq_rows)
+        seq_rows = delete_seq_code(seq_rows)
+        seq_rows.sort_values(by='image', inplace=True)
+        d[seq] = seq_rows
+        print(d[seq])
+
+    return d
 
 
 def calc_challenge_detection(dt, out_folder, split):
     detections = pd.DataFrame(columns=['image', 'detection', "confidence"])
     for image in dt.loadImgs(ids=dt.getImgIds()):
         detect = 0
-        confidence = -1
+        confidence = 0
         anns = dt.getAnnIds(imgIds=image['id'])
         if anns:
             detect = 1
-            confidence = 0
             for ann in dt.loadAnns(anns):
                 confidence += ann['score']
 
@@ -29,11 +57,17 @@ def calc_challenge_detection(dt, out_folder, split):
         detections.loc[-1] = [image['file_name'], detect, confidence]
         detections.index += 1
         detections.sort_index()
+
     detections.sort_values('image', inplace=True)
     detections.reset_index(inplace=True, drop=True)
-    print(detections)
-    detections = remap_names(detections)
-    detections.to_csv(os.path.join(out_folder, "detection-{}.csv".format(split)))
+
+    detection_csvs = reformat_csvs(detections, split=split)
+
+    if not os.path.exists(os.path.join(out_folder, 'detection')):
+        os.makedirs(os.path.join(out_folder, 'detection'))
+
+    for k, csv in detection_csvs.items():
+        csv.to_csv(os.path.join(out_folder, 'detection', "{}.csv".format(k)))
 
 
 def calc_challenge_localization(dt, out_folder, split):
@@ -52,20 +86,24 @@ def calc_challenge_localization(dt, out_folder, split):
 
     localization.sort_values('image', inplace=True)
     localization.reset_index(inplace=True, drop=True)
-    print(localization)
-    detections = remap_names(localization)
-    detections.to_csv(os.path.join(out_folder, "localization-{}.csv".format(split)))
+
+    localization_csvs = reformat_csvs(localization, split=split)
+
+    if not os.path.exists(os.path.join(out_folder, 'localization')):
+        os.makedirs(os.path.join(out_folder, 'localization'))
+
+    for k, csv in localization_csvs.items():
+        csv.to_csv(os.path.join(out_folder, 'localization', "{}.csv".format(k)))
 
 
-def show_bbox(bbox, color):
+
+
+def show_bbox(bbox):
     [bbox_x, bbox_y, bbox_w, bbox_h] = bbox
     poly = [[bbox_x, bbox_y], [bbox_x, bbox_y + bbox_h], [bbox_x + bbox_w, bbox_y + bbox_h],
             [bbox_x + bbox_w, bbox_y]]
 
     p = Polygon(poly)
-
-    for point in poly:
-        plt.scatter(point[0], point[1], c=color)
 
     return p
 
@@ -92,7 +130,7 @@ def save_validation_images(gt, dt, im_ids, save_dir):
         if len(gt_annots) > 0:
             gt_polygons = []
             for gt_annot in gt_annots:
-                gt_polygon = show_bbox(gt_annot["bbox"], gt_color)
+                gt_polygon = show_bbox(gt_annot["bbox"])
                 gt_polygons.append(gt_polygon)
 
             p = PatchCollection(gt_polygons, alpha=0.3)
@@ -102,7 +140,7 @@ def save_validation_images(gt, dt, im_ids, save_dir):
         if len(pred_annots) > 0:
             pred_polygons = []
             for pred_annot in pred_annots:
-                pred_polygon = show_bbox(pred_annot["bbox"], pred_color)
+                pred_polygon = show_bbox(pred_annot["bbox"])
                 pred_polygons.append(pred_polygon)
 
             p = PatchCollection(pred_polygons, alpha=0.3)
@@ -133,10 +171,10 @@ if __name__ == '__main__':
     # predictions
     dt = gt.loadRes(results_file)
 
-    evalutate(gt, dt, 'bbox')
+    #evalutate(gt, dt, 'bbox')
 
     calc_challenge_detection(dt, "../inference/cvc-clinic-test", "test")
     calc_challenge_localization(dt, "../inference/cvc-clinic-test", "test")
 
-    im_ids = gt.getImgIds()
-    save_validation_images(gt,dt,im_ids,"../inference/cvc-clinic-test/test/")
+    # im_ids = gt.getImgIds()
+    # save_validation_images(gt,dt,im_ids,"../inference/cvc-clinic-test/test-mask/")

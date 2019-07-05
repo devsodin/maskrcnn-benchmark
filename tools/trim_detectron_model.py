@@ -19,7 +19,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Trim Detection weights and save in PyTorch format.")
     parser.add_argument(
         "--pretrained_path",
-        default="~/.torch/models/_detectron_35857345_12_2017_baselines_e2e_faster_rcnn_R-50-FPN_1x.yaml.01_36_30.cUF7QR7I_output_train_coco_2014_train%3Acoco_2014_valminusminival_generalized_rcnn_model_final.pkl",
+        default="~/.torch/models/_detectron_35858933_12_2017_baselines_e2e_mask_rcnn_R-50-FPN_1x.yaml.01_48_14.DzEQe4wC_output_train_coco_2014_train%3Acoco_2014_valminusminival_generalized_rcnn_model_final.pkl",
         help="path to detectron pretrained weight(.pkl)",
         type=str,
     )
@@ -31,7 +31,7 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         "--cfg",
-        default="../configs/e2e_faster_rcnn_R_50_FPN_1x.yaml",
+        default="../configs/caffe2/e2e_mask_rcnn_R_50_FPN_1x_caffe2.yaml",
         help="path to config file",
         type=str,
     )
@@ -45,7 +45,8 @@ if __name__ == '__main__':
     _d = load_c2_format(cfg, DETECTRON_PATH)
     newdict = _d
 
-    newdict['model'] = removekey(_d['model'],
-                                 ['cls_score.bias', 'cls_score.weight', 'bbox_pred.bias', 'bbox_pred.weight'])
+    print(newdict['model'].keys())
+    newdict['model'] = removekey(_d['model'],['cls_score.bias', 'cls_score.weight', 'bbox_pred.bias', 'bbox_pred.weight'])
+    newdict['model'] = removekey(_d['model'],['rpn.head.bbox_pred.bias', 'rpn.head.bbox_pred.weight', 'rpn.head.cls_logits.bias', 'rpn.head.cls_logits.weight', 'mask_fcn_logits.bias', 'mask_fcn_logits.weight'])
     torch.save(newdict, args.save_path)
     print('saved to {}.'.format(args.save_path))

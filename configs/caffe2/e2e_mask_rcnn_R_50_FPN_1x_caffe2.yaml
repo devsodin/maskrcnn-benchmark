@@ -1,6 +1,7 @@
 MODEL:
   META_ARCHITECTURE: "GeneralizedRCNN"
-  WEIGHT: "catalog://Caffe2Detectron/COCO/35858933/e2e_mask_rcnn_R-50-FPN_1x"
+  #WEIGHT: "catalog://Caffe2Detectron/COCO/35858933/e2e_mask_rcnn_R-50-FPN_1x"
+  WEIGHT: "pretrained_models/mask_rcnn_R-50-FPN_1x_detectron_no_last_layers.pth"
   BACKBONE:
     CONV_BODY: "R-50-FPN"
   RESNETS:
@@ -32,6 +33,13 @@ MODEL:
   MASK_ON: True
 DATASETS:
   TRAIN: ("cvc-clinic-train",)
-  TEST:("cvc-clinic-val","cvc-clinic-test")
+  TEST: ("cvc-clinic-val","cvc-clinic-test")
 DATALOADER:
   SIZE_DIVISIBILITY: 32
+SOLVER:
+  # 1 GPU
+  BASE_LR: 0.0025
+  WEIGHT_DECAY: 0.0001
+  STEPS: [0, 30000, 40000]
+  MAX_ITER: 40000
+  IMS_PER_BATCH: 4
