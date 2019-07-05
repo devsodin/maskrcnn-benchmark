@@ -31,7 +31,11 @@ def reformat_csvs(detections, split='test'):
 
     for seq in seqs:
         print(seq)
-        seq_rows = detections.loc[detections['image'].str.contains("{:03d}-".format(seq))].copy(deep=True)
+        if split == 'test':
+            seq_rows = detections.loc[detections['image'].str.startswith("{}-".format(seq))].copy(deep=True)
+            print(seq_rows)
+        else:
+            seq_rows = detections.loc[detections['image'].str.contains("{:03d}-".format(seq))].copy(deep=True)
         print(seq_rows)
         seq_rows = delete_seq_code(seq_rows)
         seq_rows.sort_values(by='image', inplace=True)
