@@ -12,10 +12,8 @@ def remap_names(csv):
     #csv['image'] = csv.image.map(lambda x: "".join(x.split("0")).split("-")[1].split(".")[0])
     return csv
 
-def delete_seq_code(csv):
-    print(csv['image'])
+def delete_seq_code(csv, split):
     csv['image'] = csv.image.map(lambda x: int(x.split("-")[1].split(".")[0]))
-    print(csv['image'])
     return csv
 
 def reformat_csvs(detections, split='test'):
@@ -30,14 +28,11 @@ def reformat_csvs(detections, split='test'):
         raise ('invalid split - {}'.format(split))
 
     for seq in seqs:
-        print(seq)
         if split == 'test':
             seq_rows = detections.loc[detections['image'].str.startswith("{}-".format(seq))].copy(deep=True)
-            print(seq_rows)
         else:
             seq_rows = detections.loc[detections['image'].str.contains("{:03d}-".format(seq))].copy(deep=True)
-        print(seq_rows)
-        seq_rows = delete_seq_code(seq_rows)
+        seq_rows = delete_seq_code(seq_rows, split)
         seq_rows.sort_values(by='image', inplace=True)
         d[seq] = seq_rows
         print(d[seq])
@@ -71,7 +66,7 @@ def calc_challenge_detection(dt, out_folder, split):
         os.makedirs(os.path.join(out_folder, 'detection'))
 
     for k, csv in detection_csvs.items():
-        csv.to_csv(os.path.join(out_folder, 'detection', "{}.csv".format(k)))
+        csv.to_csv(os.path.join(out_folder, 'detection', "{}.csv".format(k)), index=False, header=False)
 
 
 def calc_challenge_localization(dt, out_folder, split):
@@ -97,7 +92,7 @@ def calc_challenge_localization(dt, out_folder, split):
         os.makedirs(os.path.join(out_folder, 'localization'))
 
     for k, csv in localization_csvs.items():
-        csv.to_csv(os.path.join(out_folder, 'localization', "{}.csv".format(k)))
+        csv.to_csv(os.path.join(out_folder, 'localization', "{}.csv".format(k)), index=False, header=False)
 
 
 
@@ -177,7 +172,9 @@ if __name__ == '__main__':
 
     #evalutate(gt, dt, 'bbox')
 
+    print("detection")
     calc_challenge_detection(dt, "../inference/cvc-clinic-test", "test")
+    print("localiz")
     calc_challenge_localization(dt, "../inference/cvc-clinic-test", "test")
 
     # im_ids = gt.getImgIds()
