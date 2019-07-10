@@ -116,6 +116,10 @@ class DatasetCatalog(object):
             "data_dir": "cvcvideoclinicdbtest/images",
             "ann_file": "cvcvideoclinicdbtest/annotations/test.json"
         },
+        "cvc-classification": {
+            "data_dir": "CVC-classification/images",
+            "ann_file": "CVC-classification/annotations/train.json"
+        },
         "etis-larib":{
             "data_dir": "ETIS-LaribPolypDB/images",
             "ann_file": "ETIS-LaribPolypDB/annotations/etis-larib.json",
@@ -149,7 +153,7 @@ class DatasetCatalog(object):
                 factory="PascalVOCDataset",
                 args=args,
             )
-        elif "cvc-clinic" in name:
+        elif "cvc-clinic" in name or 'cvc-classification' in name:
             data_dir = DatasetCatalog.DATA_DIR
             attrs = DatasetCatalog.DATASETS[name]
             args = dict(

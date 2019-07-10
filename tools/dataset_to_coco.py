@@ -12,19 +12,17 @@ import cv2
 
 import matplotlib.pyplot as plt
 
-
-# ROOT_DIR = "C:\\Users\\Yael\\Desktop\\CVC-VideoClinicDBtrain_valid"
-# ROOT_DIR = "/home/devsodin/Downloads/MaskRCNN/CVC-VideoClinicDBtrain_valid"
 from torch._C import dtype
 
-#ROOT_DIR = "datasets/CVC-VideoClinicDBtrain_valid"
-ROOT_DIR = "datasets/cvcvideoclinicdbtest"
+ROOT_DIR = "../datasets/CVC-VideoClinicDBtrain_valid"
+#ROOT_DIR = "../datasets/cvcvideoclinicdbtest"
+#ROOT_DIR = "../datasets/ETIS-LaribPolypDB"
 MASK_EXTENSION = "_polyp"
 IMAGES_DIR = os.path.join(ROOT_DIR, "images")
 MASKS_DIR = os.path.join(ROOT_DIR, "masks")
 
 INFO = {
-    "description": "CVC-CLINIC Dataset - Test",
+    "description": "CVC-Clinic-test",
     "url": "",
     "version": "1.0",
     "year": 2019,
@@ -83,7 +81,7 @@ def get_mask_images(mask_file):
 
 
 def get_image_coco_info(image_id, filename, size, license="", cocourl="", flickurl="", datacaptured=""):
-    info =  {
+    info = {
         "id": image_id,
         "license": license,
         "coco_url": cocourl,
@@ -99,16 +97,16 @@ def get_image_coco_info(image_id, filename, size, license="", cocourl="", flicku
 
 def get_annotations_coco_image(segmentation_id, image_id, category_info, binary_mask):
     bbox = generate_bbox(binary_mask)
-    contours,_ = cv2.findContours(binary_mask,cv2.RETR_LIST,cv2.CHAIN_APPROX_NONE)
-    segmentation = []
+    contours, _ = cv2.findContours(binary_mask, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
+
+    segmentation = list()
     for seg in contours:
         el_seg = []
-        seg = np.unique(seg,axis=0)
         for dot in seg:
             dot = dot.astype(int)
-            el_seg += dot.tolist()[0]
+            el_seg += dot[0].astype(int).tolist()
         segmentation.append(el_seg)
-
+        print(type(segmentation))
 
     area = mask.area(mask.encode(np.asfortranarray(binary_mask.astype(np.uint8))))
     iscrowd = 1 if category_info["is_crowd"] else 0
@@ -116,7 +114,7 @@ def get_annotations_coco_image(segmentation_id, image_id, category_info, binary_
     if bbox is not None and area > 1 and segmentation is not None:
         bbox = bbox.tolist()
 
-        annot =  {
+        annot = {
             # id, category id, iscrowd, segmentation, image_id, area, bbox(x,y,w,h)
 
             "segmentation": segmentation,
@@ -135,9 +133,7 @@ def get_annotations_coco_image(segmentation_id, image_id, category_info, binary_
         return None
 
 
-def dataset_to_coco(root_folder, info, licenses, categories, seqs, out_name, has_annotations=True):
-
-
+def dataset_to_coco(root_folder: str, info, licenses, categories, seqs: list or None, out_name: str, has_annotations: bool = True) -> None:
     coco_output = {
         "info": info,
         "licenses": licenses,
@@ -176,20 +172,19 @@ def dataset_to_coco(root_folder, info, licenses, categories, seqs, out_name, has
             annot_info = get_annotations_coco_image(segmentation_id, image_id, category_info, binary_mask)
 
             if annot_info is not None:
-
                 coco_output["annotations"].append(annot_info)
 
             segmentation_id = segmentation_id + 1
 
         image_id = image_id + 1
 
-    with open(os.path.join(ROOT_DIR,"annotations", out_name), "w") as f:
+    with open(os.path.join(ROOT_DIR, "annotations", out_name), "w") as f:
         json.dump(coco_output, f)
 
 
 def rename_images():
-    for im in os.listdir(MASKS_DIR):
-        extension = im.split(".")[1]
+    #for im in os.listdir(MASKS_DIR):
+        # extension = im.split(".")[1]
 
         # CVC train-val
         # seq = int(im.split("-")[0])
@@ -203,7 +198,7 @@ def rename_images():
         # im_number = int(im.split(".")[0][1:])
         # new_name = "{:03d}{}.{}".format(im_number,MASK_EXTENSION, extension)
 
-        # os.rename(os.path.join(ANNOTATIONS_DIR, im),os.path.join(ANNOTATIONS_DIR, new_name))
+        # os.rename(os.path.join(MASKS_DIR, im),os.path.join(MASKS_DIR, new_name))
 
     for im in os.listdir(IMAGES_DIR):
         extension = im.split(".")[1]
@@ -216,14 +211,16 @@ def rename_images():
 
         # ETIS-Larib
         # im_number = int(im.split(".")[0])
-        # new_name = "{:03d}.{}".format(im_number,extension)
+        # new_name = "{:03d}.{}".format(im_number, extension)
 
-        # os.rename(os.path.join(IMAGES_DIR, im), os.path.join(IMAGES_DIR, new_name))
+        os.rename(os.path.join(IMAGES_DIR, im), os.path.join(IMAGES_DIR, new_name))
 
 
 if __name__ == '__main__':
-    train_seq = ["{:03d}".format(x) for x in range(1,16)]
-    val_seq= ["{:03d}".format(x) for x in range(16, 19)]
-    #dataset_to_coco(ROOT_DIR, INFO, LICENSES, CATEGORIES, train_seq, "train.json")
-    #dataset_to_coco(ROOT_DIR, INFO, LICENSES, CATEGORIES, val_seq, "val.json")
-    dataset_to_coco(ROOT_DIR, INFO, LICENSES, CATEGORIES, None, "test.json", has_annotations=False)
+    # rename_images()
+
+    train_seq = ["{:03d}".format(x) for x in range(1, 16)]
+    val_seq = ["{:03d}".format(x) for x in range(16, 19)]
+    # dataset_to_coco(ROOT_DIR, INFO, LICENSES, CATEGORIES, train_seq, "train.json")
+    # dataset_to_coco(ROOT_DIR, INFO, LICENSES, CATEGORIES, val_seq, "val.json")
+    dataset_to_coco(ROOT_DIR, INFO, LICENSES, CATEGORIES, train_seq, "train.json", has_annotations=True)

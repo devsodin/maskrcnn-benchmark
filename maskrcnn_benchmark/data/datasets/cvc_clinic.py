@@ -81,3 +81,9 @@ class CVCClinicDataset(CocoDetection):
         img_id = self.id_to_img_map[index]
         img_data = self.coco.imgs[img_id]
         return img_data
+
+
+if __name__ == '__main__':
+
+    test = CVCClinicDataset("../../../datasets/CVC-classification/annotations/train.json", "../../../datasets/CVC-classification/images",False,None)
+    print(test[0][1])

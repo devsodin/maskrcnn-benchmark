@@ -3,22 +3,18 @@ from pycocotools import coco, cocoeval
 from matplotlib.patches import Polygon
 from matplotlib.collections import PatchCollection
 
+from pycocotools.mask import decode, encode
 import pandas as pd
 import os
 
 
-def remap_names(csv):
-    csv['image'] = csv.image.map(lambda x: "".join(x.split("0")))
-    #csv['image'] = csv.image.map(lambda x: "".join(x.split("0")).split("-")[1].split(".")[0])
-    return csv
-
-def delete_seq_code(csv, split):
+def delete_seq_code(csv):
     csv['image'] = csv.image.map(lambda x: int(x.split("-")[1].split(".")[0]))
     return csv
 
+
 def reformat_csvs(detections, split='test'):
     d = {}
-    seqs = []
 
     if split == 'val':
         seqs = range(16, 19)
@@ -28,11 +24,8 @@ def reformat_csvs(detections, split='test'):
         raise ('invalid split - {}'.format(split))
 
     for seq in seqs:
-        if split == 'test':
-            seq_rows = detections.loc[detections['image'].str.startswith("{}-".format(seq))].copy(deep=True)
-        else:
-            seq_rows = detections.loc[detections['image'].str.contains("{:03d}-".format(seq))].copy(deep=True)
-        seq_rows = delete_seq_code(seq_rows, split)
+        seq_rows = detections.loc[detections['image'].str.contains("{:03d}-".format(seq))].copy(deep=True)
+        seq_rows = delete_seq_code(seq_rows)
         seq_rows.sort_values(by='image', inplace=True)
         d[seq] = seq_rows
         print(d[seq])
@@ -40,61 +33,58 @@ def reformat_csvs(detections, split='test'):
     return d
 
 
-def calc_challenge_detection(dt, out_folder, split):
-    detections = pd.DataFrame(columns=['image', 'detection', "confidence"])
+def calc_challenge_metrics(loc_df, detect_df, dt, out_folder, split):
     for image in dt.loadImgs(ids=dt.getImgIds()):
-        detect = 0
-        confidence = 0
-        anns = dt.getAnnIds(imgIds=image['id'])
-        if anns:
-            detect = 1
-            for ann in dt.loadAnns(anns):
-                confidence += ann['score']
+        detect_on_image(detect_df, dt, image)
+        localize_on_image(dt, image, loc_df)
 
-            confidence /= len(anns)
+    detect_df.sort_values('image', inplace=True)
+    detect_df.reset_index(inplace=True, drop=True)
+    loc_df.sort_values('image', inplace=True)
+    loc_df.reset_index(inplace=True, drop=True)
 
-        detections.loc[-1] = [image['file_name'], detect, confidence]
-        detections.index += 1
-        detections.sort_index()
+    detect_csvs = reformat_csvs(detect_df, split=split)
+    loc_csvs = reformat_csvs(loc_df, split=split)
 
-    detections.sort_values('image', inplace=True)
-    detections.reset_index(inplace=True, drop=True)
+    if not os.path.exists(os.path.join(out_folder, "detection")):
+        os.makedirs(os.path.join(out_folder, "detection"))
 
-    detection_csvs = reformat_csvs(detections, split=split)
+    for k, csv in detect_csvs.items():
+        csv.to_csv(os.path.join(out_folder, "detection", "{}.csv".format(k)), index=False, header=False)
 
-    if not os.path.exists(os.path.join(out_folder, 'detection')):
-        os.makedirs(os.path.join(out_folder, 'detection'))
+    if not os.path.exists(os.path.join(out_folder, "localization")):
+        os.makedirs(os.path.join(out_folder, "localization"))
 
-    for k, csv in detection_csvs.items():
-        csv.to_csv(os.path.join(out_folder, 'detection', "{}.csv".format(k)), index=False, header=False)
+    for k, csv in loc_csvs.items():
+        csv.to_csv(os.path.join(out_folder, "localization", "{}.csv".format(k)), index=False, header=False)
 
 
-def calc_challenge_localization(dt, out_folder, split):
-    localization = pd.DataFrame(columns=['image', "center_x", "center_y", "confidence"])
-    for image in dt.loadImgs(ids=dt.getImgIds()):
-        anns = dt.getAnnIds(imgIds=image['id'])
-        if anns:
-            for ann in dt.loadAnns(anns):
-                x, y, w, h = ann['bbox']
-                centroid_x = x + 0.5 * w
-                centroid_y = y + 0.5 * h
+def detect_on_image(detections, dt, image):
+    detect = 0
+    confidence = 0
+    anns = dt.getAnnIds(imgIds=image['id'])
+    if anns:
+        detect = 1
+        for ann in dt.loadAnns(anns):
+            confidence += ann['score']
 
-                localization.loc[-1] = [image['file_name'], centroid_x, centroid_y, ann['score']]
-                localization.index += 1
-                localization.sort_index()
-
-    localization.sort_values('image', inplace=True)
-    localization.reset_index(inplace=True, drop=True)
-
-    localization_csvs = reformat_csvs(localization, split=split)
-
-    if not os.path.exists(os.path.join(out_folder, 'localization')):
-        os.makedirs(os.path.join(out_folder, 'localization'))
-
-    for k, csv in localization_csvs.items():
-        csv.to_csv(os.path.join(out_folder, 'localization', "{}.csv".format(k)), index=False, header=False)
+        confidence /= len(anns)
+    detections.loc[-1] = [image['file_name'], detect, confidence]
+    detections.index += 1
+    detections.sort_index()
 
 
+def localize_on_image(dt, image, localization):
+    anns = dt.getAnnIds(imgIds=image['id'])
+    if anns:
+        for ann in dt.loadAnns(anns):
+            x, y, w, h = ann['bbox']
+            centroid_x = x + 0.5 * w
+            centroid_y = y + 0.5 * h
+
+            localization.loc[-1] = [image['file_name'], centroid_x, centroid_y, ann['score']]
+            localization.index += 1
+            localization.sort_index()
 
 
 def show_bbox(bbox):
@@ -103,6 +93,15 @@ def show_bbox(bbox):
             [bbox_x + bbox_w, bbox_y]]
 
     p = Polygon(poly)
+
+    return p
+
+def show_mask(mask):
+    print(mask)
+    print(decode(mask).shape)
+    plt.imshow(decode(mask))
+    plt.show()
+    ppppp
 
     return p
 
@@ -122,60 +121,89 @@ def save_validation_images(gt, dt, im_ids, save_dir):
         pred_annots = dt.loadAnns(ids=pred_im_annots)
         gt_annots = gt.loadAnns(ids=gt_im_annots)
 
-        print(images_folder + gt.imgs[im_id]['file_name'])
+        print("validating ",results_data['images_folder'] + gt.imgs[im_id]['file_name'])
 
         fig, ax = plt.subplots()
-        ax.imshow(plt.imread(images_folder + gt.imgs[im_id]['file_name']))
+        ax.imshow(plt.imread(results_data['images_folder'] + gt.imgs[im_id]['file_name']))
+
+        annIds = gt.getAnnIds(imgIds=im_id)
+        anns = gt.loadAnns(annIds)
+        gt.showAnns(anns)
+        plt.show()
+        ssss
+
         if len(gt_annots) > 0:
-            gt_polygons = []
+            gt_bboxes = []
+            gt_masks = []
+
             for gt_annot in gt_annots:
                 gt_polygon = show_bbox(gt_annot["bbox"])
-                gt_polygons.append(gt_polygon)
+                gt_bboxes.append(gt_polygon)
 
-            p = PatchCollection(gt_polygons, alpha=0.3)
+                gt_mask = show_mask(gt_annot['segmentation'])
+                gt_masks.append(gt_mask)
+
+
+
+            p = PatchCollection(gt_bboxes, alpha=0.3)
             p.set_color(gt_color)
             ax.add_collection(p)
 
         if len(pred_annots) > 0:
-            pred_polygons = []
+            pred_bboxes = []
             for pred_annot in pred_annots:
                 pred_polygon = show_bbox(pred_annot["bbox"])
-                pred_polygons.append(pred_polygon)
+                pred_bboxes.append(pred_polygon)
 
-            p = PatchCollection(pred_polygons, alpha=0.3)
+            p = PatchCollection(pred_bboxes, alpha=0.3)
             p.set_color(pred_color)
 
             ax.add_collection(p)
+        print("saving to: ", os.path.join(save_dir, gt.imgs[im_id]['file_name']))
 
-        plt.savefig(save_dir + gt.imgs[im_id]['file_name'])
+        plt.savefig(os.path.join(save_dir, gt.imgs[im_id]['file_name']))
         plt.clf()
         plt.close()
 
 
 if __name__ == '__main__':
-    #annotation_file = "../datasets/CVC-VideoClinicDBtrain_valid/annotations/val.json"
-    #images_folder = "../datasets/CVC-VideoClinicDBtrain_valid/images/"
-    #results_file = "../inference/cvc-clinic-val/bbox.json"
+    results_data = {
+        'annotation_file': "../datasets/CVC-VideoClinicDBtrain_valid/annotations/val.json",
+        'images_folder': "../datasets/CVC-VideoClinicDBtrain_valid/images/",
+        'results_folder': "../out_train_classif/inference/cvc-clinic-val/",
+        'split': "val"
 
-    annotation_file = "../datasets/cvcvideoclinicdbtest/annotations/test.json"
-    images_folder = "../datasets/cvcvideoclinicdbtest/images/"
-    results_file = "../inference/cvc-clinic-test/bbox.json"
+    }
+
+    # results_data = {
+    #    'annotation_file': "../datasets/cvcvideoclinicdbtest/annotations/test.json",
+    #    'images_folder': "../datasets/cvcvideoclinicdbtest/images/",
+    #    'results_folder': "../inference/cvc-clinic-test/",
+    #    'split': "test"
+    # }
+
+    save_ims = True
 
     gt_color = "c"
     pred_color = "m"
 
     # ground truth
-    gt = coco.COCO(annotation_file)
+    gt = coco.COCO(results_data['annotation_file'])
 
     # predictions
-    dt = gt.loadRes(results_file)
+    dt = gt.loadRes(os.path.join(results_data['results_folder'], "bbox.json"))
 
-    #evalutate(gt, dt, 'bbox')
+    evalutate(gt, dt, 'bbox')
+    evalutate(gt, dt, 'segm')
 
-    print("detection")
-    calc_challenge_detection(dt, "../inference/cvc-clinic-test", "test")
-    print("localiz")
-    calc_challenge_localization(dt, "../inference/cvc-clinic-test", "test")
+    detection = pd.DataFrame(columns=['image', "has_polyp", "confidence"])
+    localization = pd.DataFrame(columns=['image', "center_x", "center_y", "confidence"])
+    calc_challenge_metrics(localization, detection, dt, results_data['results_folder'], results_data['split'])
 
-    # im_ids = gt.getImgIds()
-    # save_validation_images(gt,dt,im_ids,"../inference/cvc-clinic-test/test-mask/")
+    if save_ims:
+        im_ids = gt.getImgIds()
+        save_dir = os.path.join(results_data['results_folder'], "ims")
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+        save_validation_images(gt, dt, im_ids, save_dir)
+
