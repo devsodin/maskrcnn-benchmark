@@ -92,18 +92,13 @@ def show_bbox(bbox):
     poly = [[bbox_x, bbox_y], [bbox_x, bbox_y + bbox_h], [bbox_x + bbox_w, bbox_y + bbox_h],
             [bbox_x + bbox_w, bbox_y]]
 
-    p = Polygon(poly)
+    p = Polygon(poly, fill=False)
 
     return p
 
 def show_mask(mask):
-    print(mask)
-    print(decode(mask).shape)
-    plt.imshow(decode(mask))
-    plt.show()
-    ppppp
 
-    return p
+    return
 
 
 def evalutate(gt, dt, mode='bbox'):
@@ -126,40 +121,42 @@ def save_validation_images(gt, dt, im_ids, save_dir):
         fig, ax = plt.subplots()
         ax.imshow(plt.imread(results_data['images_folder'] + gt.imgs[im_id]['file_name']))
 
-        annIds = gt.getAnnIds(imgIds=im_id)
-        anns = gt.loadAnns(annIds)
-        gt.showAnns(anns)
-        plt.show()
-        ssss
-
         if len(gt_annots) > 0:
             gt_bboxes = []
-            gt_masks = []
 
             for gt_annot in gt_annots:
                 gt_polygon = show_bbox(gt_annot["bbox"])
                 gt_bboxes.append(gt_polygon)
 
-                gt_mask = show_mask(gt_annot['segmentation'])
-                gt_masks.append(gt_mask)
-
-
+            annIds = gt.getAnnIds(imgIds=im_id)
+            anns = gt.loadAnns(annIds)
+            gt.showAnns(anns)
 
             p = PatchCollection(gt_bboxes, alpha=0.3)
-            p.set_color(gt_color)
+            p.set_facecolor('none')
+            p.set_edgecolor(gt_color)
+            p.set_linewidth(3)
             ax.add_collection(p)
 
         if len(pred_annots) > 0:
             pred_bboxes = []
+
             for pred_annot in pred_annots:
                 pred_polygon = show_bbox(pred_annot["bbox"])
                 pred_bboxes.append(pred_polygon)
 
+            annIds = dt.getAnnIds(imgIds=im_id)
+            anns = dt.loadAnns(annIds)
+            dt.showAnns(anns)
+
             p = PatchCollection(pred_bboxes, alpha=0.3)
-            p.set_color(pred_color)
+            p.set_facecolor('none')
+            p.set_edgecolor(pred_color)
+            p.set_linewidth(3)
 
             ax.add_collection(p)
         print("saving to: ", os.path.join(save_dir, gt.imgs[im_id]['file_name']))
+        plt.show()
 
         plt.savefig(os.path.join(save_dir, gt.imgs[im_id]['file_name']))
         plt.clf()
@@ -182,10 +179,11 @@ if __name__ == '__main__':
     #    'split': "test"
     # }
 
+
     save_ims = True
 
-    gt_color = "c"
-    pred_color = "m"
+    gt_color = "orange"
+    pred_color = "blue"
 
     # ground truth
     gt = coco.COCO(results_data['annotation_file'])

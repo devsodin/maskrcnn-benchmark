@@ -14,15 +14,15 @@ import matplotlib.pyplot as plt
 
 from torch._C import dtype
 
-ROOT_DIR = "../datasets/CVC-VideoClinicDBtrain_valid"
+#ROOT_DIR = "../datasets/CVC-VideoClinicDBtrain_valid"
 #ROOT_DIR = "../datasets/cvcvideoclinicdbtest"
-#ROOT_DIR = "../datasets/ETIS-LaribPolypDB"
+ROOT_DIR = "../datasets/ETIS-LaribPolypDB"
 MASK_EXTENSION = "_polyp"
 IMAGES_DIR = os.path.join(ROOT_DIR, "images")
 MASKS_DIR = os.path.join(ROOT_DIR, "masks")
 
 INFO = {
-    "description": "CVC-Clinic-test",
+    "description": "Etis-Train",
     "url": "",
     "version": "1.0",
     "year": 2019,
@@ -223,4 +223,4 @@ if __name__ == '__main__':
     val_seq = ["{:03d}".format(x) for x in range(16, 19)]
     # dataset_to_coco(ROOT_DIR, INFO, LICENSES, CATEGORIES, train_seq, "train.json")
     # dataset_to_coco(ROOT_DIR, INFO, LICENSES, CATEGORIES, val_seq, "val.json")
-    dataset_to_coco(ROOT_DIR, INFO, LICENSES, CATEGORIES, train_seq, "train.json", has_annotations=True)
+    dataset_to_coco(ROOT_DIR, INFO, LICENSES, CATEGORIES, None, "train.json", has_annotations=True)
