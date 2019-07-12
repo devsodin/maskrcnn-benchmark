@@ -49,6 +49,7 @@ class ETISLaribDataset(CocoDetection):
         self.id_to_img_map = {k: v for k, v in enumerate(self.ids)}
         self._transforms = transforms
 
+
     def __getitem__(self, idx):
         image, annotation = super(ETISLaribDataset, self).__getitem__(idx)
 

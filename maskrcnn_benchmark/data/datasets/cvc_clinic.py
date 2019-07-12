@@ -47,7 +47,7 @@ class CVCClinicDataset(CocoDetection):
         }
         self.id_to_img_map = {k: v for k, v in enumerate(self.ids)}
         self._transforms = transforms
-
+        self._endoscope_mask = None
 
     def __getitem__(self, idx):
         image, annotation = super(CVCClinicDataset, self).__getitem__(idx)
@@ -84,6 +84,6 @@ class CVCClinicDataset(CocoDetection):
 
 
 if __name__ == '__main__':
-
-    test = CVCClinicDataset("../../../datasets/CVC-classification/annotations/train.json", "../../../datasets/CVC-classification/images",False,None)
+    test = CVCClinicDataset("../../../datasets/CVC-classification/annotations/train.json",
+                            "../../../datasets/CVC-classification/images", False, None)
     print(test[0][1])

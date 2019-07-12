@@ -1,7 +1,7 @@
 MODEL:
   META_ARCHITECTURE: "GeneralizedRCNN"
-  #WEIGHT: "catalog://Caffe2Detectron/COCO/35858933/e2e_mask_rcnn_R-50-FPN_1x"
-  WEIGHT: "pretrained_models/mask_rcnn_R-50-FPN_1x_detectron_no_last_layers.pth"
+  WEIGHT: "catalog://Caffe2Detectron/COCO/35858933/e2e_mask_rcnn_R-50-FPN_1x"
+  # WEIGHT: "pretrained_models/mask_rcnn_R-50-FPN_1x_detectron_no_last_layers.pth"
   BACKBONE:
     CONV_BODY: "R-50-FPN"
   RESNETS:
@@ -21,7 +21,7 @@ MODEL:
     POOLER_SAMPLING_RATIO: 2
     FEATURE_EXTRACTOR: "FPN2MLPFeatureExtractor"
     PREDICTOR: "FPNPredictor"
-    NUM_CLASSES: 5
+    NUM_CLASSES: 2
   ROI_MASK_HEAD:
     POOLER_SCALES: (0.25, 0.125, 0.0625, 0.03125)
     FEATURE_EXTRACTOR: "MaskRCNNFPNFeatureExtractor"
@@ -32,8 +32,8 @@ MODEL:
     SHARE_BOX_FEATURE_EXTRACTOR: False
   MASK_ON: True
 DATASETS:
-  TRAIN: ("cvc-classification","cvc-clinic-train")
-  TEST: ("cvc-clinic-val","cvc-clinic-test")
+  TRAIN: ("cvc-clinic-train",)
+  TEST: ("cvc-clinic-val","cvc-clinic-test","cvc-classification","etis-larib")
 DATALOADER:
   SIZE_DIVISIBILITY: 32
 SOLVER:
@@ -41,11 +41,8 @@ SOLVER:
   BASE_LR: 0.0025
   WEIGHT_DECAY: 0.0001
   STEPS: [0, 30000, 40000]
-  MAX_ITER: 7500
-  IMS_PER_BATCH: 4
+  MAX_ITER: 90000
+  IMS_PER_BATCH: 8
 INPUT:
-  CONTRAST: 0.25
-  SATURATION: 0.1
-  HUE: 0.25
   VERTICAL_FLIP_PROB_TRAIN: 0.4
-OUTPUT_DIR: "out_train_classif"
+OUTPUT_DIR: "out_clinicdb_train"

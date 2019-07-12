@@ -2,10 +2,50 @@ from matplotlib import pyplot as plt
 from pycocotools import coco, cocoeval
 from matplotlib.patches import Polygon
 from matplotlib.collections import PatchCollection
+from matplotlib.colors import  ColorConverter
 
 from pycocotools.mask import decode, encode
 import pandas as pd
 import os
+
+import numpy as np
+
+
+def showAnns(coco_object, anns, color):
+    """
+    "Overrided" function from pycocotools to use custom colors.
+    :param coco_object: object from pycocotools API (self references)
+    :param anns: annotations to show
+    :param color: color for the annotations
+    :return:
+    """
+
+    ax = plt.gca()
+    ax.set_autoscale_on(False)
+    polygons = []
+    for ann in anns:
+        if 'segmentation' in ann:
+            if type(ann['segmentation']) == list:
+                # polygon
+                for seg in ann['segmentation']:
+                    poly = np.array(seg).reshape((int(len(seg) / 2), 2))
+                    polygons.append(Polygon(poly))
+            else:
+                # mask
+                t = coco_object.imgs[ann['image_id']]
+                if type(ann['segmentation']['counts']) == list:
+                    rle = coco.maskUtils.frPyObjects([ann['segmentation']], t['height'], t['width'])
+                else:
+                    rle = [ann['segmentation']]
+                m = coco.maskUtils.decode(rle)
+                img = np.ones((m.shape[0], m.shape[1], 3))
+                for i in range(3):
+                    img[:, :, i] = ColorConverter.to_rgba(color)[i]
+                ax.imshow(np.dstack((img, m * 0.5)))
+    p = PatchCollection(polygons, facecolor=color, linewidths=0, alpha=0.4)
+    ax.add_collection(p)
+    p = PatchCollection(polygons, facecolor='none', edgecolors=color, linewidths=2)
+    ax.add_collection(p)
 
 
 def delete_seq_code(csv):
@@ -96,8 +136,8 @@ def show_bbox(bbox):
 
     return p
 
-def show_mask(mask):
 
+def show_mask(mask):
     return
 
 
@@ -108,15 +148,15 @@ def evalutate(gt, dt, mode='bbox'):
     evaluation.summarize()
 
 
-def save_validation_images(gt, dt, im_ids, save_dir):
+def save_validation_images(gt, dt_bbox, dt_segm, im_ids, save_dir):
     for im_id in im_ids:
         gt_im_annots = gt.getAnnIds(imgIds=im_id)
-        pred_im_annots = dt.getAnnIds(imgIds=im_id)
+        pred_im_annots = dt_bbox.getAnnIds(imgIds=im_id)
 
-        pred_annots = dt.loadAnns(ids=pred_im_annots)
+        pred_annots = dt_bbox.loadAnns(ids=pred_im_annots)
         gt_annots = gt.loadAnns(ids=gt_im_annots)
 
-        print("validating ",results_data['images_folder'] + gt.imgs[im_id]['file_name'])
+        print("validating ", results_data['images_folder'] + gt.imgs[im_id]['file_name'])
 
         fig, ax = plt.subplots()
         ax.imshow(plt.imread(results_data['images_folder'] + gt.imgs[im_id]['file_name']))
@@ -130,7 +170,7 @@ def save_validation_images(gt, dt, im_ids, save_dir):
 
             annIds = gt.getAnnIds(imgIds=im_id)
             anns = gt.loadAnns(annIds)
-            gt.showAnns(anns)
+            showAnns(gt, anns, gt_color)
 
             p = PatchCollection(gt_bboxes, alpha=0.3)
             p.set_facecolor('none')
@@ -145,9 +185,9 @@ def save_validation_images(gt, dt, im_ids, save_dir):
                 pred_polygon = show_bbox(pred_annot["bbox"])
                 pred_bboxes.append(pred_polygon)
 
-            annIds = dt.getAnnIds(imgIds=im_id)
-            anns = dt.loadAnns(annIds)
-            dt.showAnns(anns)
+            annIds = dt_segm.getAnnIds(imgIds=im_id)
+            anns = dt_segm.loadAnns(annIds)
+            showAnns(dt_segm, anns, pred_color)
 
             p = PatchCollection(pred_bboxes, alpha=0.3)
             p.set_facecolor('none')
@@ -157,17 +197,20 @@ def save_validation_images(gt, dt, im_ids, save_dir):
             ax.add_collection(p)
         print("saving to: ", os.path.join(save_dir, gt.imgs[im_id]['file_name']))
         plt.show()
-
-        plt.savefig(os.path.join(save_dir, gt.imgs[im_id]['file_name']))
+        #plt.savefig(os.path.join(save_dir, gt.imgs[im_id]['file_name']))
         plt.clf()
         plt.close()
 
 
 if __name__ == '__main__':
+
+    save_ims = True
+    calc_metrics = False
+
     results_data = {
         'annotation_file': "../datasets/CVC-VideoClinicDBtrain_valid/annotations/val.json",
         'images_folder': "../datasets/CVC-VideoClinicDBtrain_valid/images/",
-        'results_folder': "../out_train_classif/inference/cvc-clinic-val/",
+        'results_folder': "../coco_cvcdb_etis/inference/cvc-clinic-val/",
         'split': "val"
 
     }
@@ -175,33 +218,46 @@ if __name__ == '__main__':
     # results_data = {
     #    'annotation_file': "../datasets/cvcvideoclinicdbtest/annotations/test.json",
     #    'images_folder': "../datasets/cvcvideoclinicdbtest/images/",
-    #    'results_folder': "../inference/cvc-clinic-test/",
+    #    'results_folder': "../out_mask_50/inference/cvc-clinic-test/",
     #    'split': "test"
     # }
 
+    # results_data = {
+    #     'annotation_file': "../datasets/CVC-classification/annotations/train.json",
+    #     'images_folder': "../datasets/CVC-classification/images/",
+    #     'results_folder': "../out_mask_50/inference/cvc-classification/",
+    #     'split': "val"
+    # }
 
-    save_ims = True
+    # results_data = {
+    #     'annotation_file': "../datasets/ETIS-LaribPolypDB/annotations/train.json",
+    #     'images_folder': "../datasets/ETIS-LaribPolypDB/images/",
+    #     'results_folder': "../out_mask_50/inference/etis-larib/",
+    #     'split': "val"
+    # }
 
-    gt_color = "orange"
-    pred_color = "blue"
+
+    gt_color = "blue"
+    pred_color = "gold"
 
     # ground truth
     gt = coco.COCO(results_data['annotation_file'])
 
     # predictions
-    dt = gt.loadRes(os.path.join(results_data['results_folder'], "bbox.json"))
+    dt_bbox = gt.loadRes(os.path.join(results_data['results_folder'], "bbox.json"))
+    det_segm = gt.loadRes(os.path.join(results_data['results_folder'], "segm.json"))
 
-    evalutate(gt, dt, 'bbox')
-    evalutate(gt, dt, 'segm')
+    evalutate(gt, dt_bbox, 'bbox')
+    evalutate(gt, det_segm, 'segm')
 
     detection = pd.DataFrame(columns=['image', "has_polyp", "confidence"])
     localization = pd.DataFrame(columns=['image', "center_x", "center_y", "confidence"])
-    calc_challenge_metrics(localization, detection, dt, results_data['results_folder'], results_data['split'])
+    if calc_metrics:
+        calc_challenge_metrics(localization, detection, dt_bbox, results_data['results_folder'], results_data['split'])
 
     if save_ims:
         im_ids = gt.getImgIds()
         save_dir = os.path.join(results_data['results_folder'], "ims")
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
-        save_validation_images(gt, dt, im_ids, save_dir)
-
+        save_validation_images(gt, dt_bbox, det_segm, im_ids, save_dir)

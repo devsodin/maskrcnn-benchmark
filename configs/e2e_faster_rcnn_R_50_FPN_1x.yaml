@@ -1,7 +1,7 @@
 MODEL:
   META_ARCHITECTURE: "GeneralizedRCNN"
-  #WEIGHT: "catalog://ImageNetPretrained/MSRA/R-50"
-  WEIGHT: "pretrained_models/mask_rcnn_R-50-FPN_1x_detectron_no_last_layers.pth"
+  WEIGHT: "catalog://ImageNetPretrained/MSRA/R-50"
+  #WEIGHT: "pretrained_models/mask_rcnn_R-50-FPN_1x_detectron_no_last_layers.pth"
   BACKBONE:
     CONV_BODY: "R-50-FPN"
   RESNETS:
@@ -24,7 +24,7 @@ MODEL:
     NUM_CLASSES: 2
 DATASETS:
   TRAIN: ("cvc-clinic-train",)
-  TEST: ("cvc-clinic-val","cvc-clinic-test")
+  TEST: ("cvc-clinic-val","cvc-clinic-test","cvc-classification")
 DATALOADER:
   SIZE_DIVISIBILITY: 32
 SOLVER:
@@ -33,4 +33,7 @@ SOLVER:
   WEIGHT_DECAY: 0.0001
   STEPS: [0, 30000, 40000]
   MAX_ITER: 7500
-  IMS_PER_BATCH: 4
+  IMS_PER_BATCH: 8
+INPUT:
+  VERTICAL_FLIP_PROB_TRAIN: 0.4
+OUTPUT_DIR: "out_faster_r50"

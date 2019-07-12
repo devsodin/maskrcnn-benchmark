@@ -102,6 +102,13 @@ class ColorJitter(object):
         image = self.color_jitter(image)
         return image, target
 
+# TODO
+# class Pad(object):
+#     def __init__(self,padding, fill=0, padding_mode='constant'):
+#         self.padding = padding
+#         self.fill = fill
+#         self.padding_mode = padding_mode
+
 
 class ToTensor(object):
     def __call__(self, image, target):

@@ -120,12 +120,10 @@ class DatasetCatalog(object):
             "data_dir": "CVC-classification/images",
             "ann_file": "CVC-classification/annotations/train.json"
         },
-        "etis-larib":{
+        "etis-larib": {
             "data_dir": "ETIS-LaribPolypDB/images",
-            "ann_file": "ETIS-LaribPolypDB/annotations/etis-larib.json",
+            "ann_file": "ETIS-LaribPolypDB/annotations/train.json",
         }
-
-
 
     }
 
@@ -164,13 +162,12 @@ class DatasetCatalog(object):
                 factory="CVCClinicDataset",
                 args=args,
             )
-        elif "etis-larib" in name:
-            # TODO change parameters when implemented - USING ONLY CVC-CLINIC
+        elif "etis" in name:
             data_dir = DatasetCatalog.DATA_DIR
             attrs = DatasetCatalog.DATASETS[name]
             args = dict(
-                data_dir=os.path.join(data_dir, attrs["data_dir"]),
-                annot_file=os.path.join(data_dir, attrs["ann_file"]),
+                root=os.path.join(data_dir, attrs["data_dir"]),
+                annotation_file=os.path.join(data_dir, attrs["ann_file"]),
             )
             return dict(
                 factory="ETISLaribDataset",
