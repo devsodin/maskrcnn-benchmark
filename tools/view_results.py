@@ -196,8 +196,8 @@ def save_validation_images(gt, dt_bbox, dt_segm, im_ids, save_dir):
 
             ax.add_collection(p)
         print("saving to: ", os.path.join(save_dir, gt.imgs[im_id]['file_name']))
-        plt.show()
-        #plt.savefig(os.path.join(save_dir, gt.imgs[im_id]['file_name']))
+        #plt.show()
+        plt.savefig(os.path.join(save_dir, gt.imgs[im_id]['file_name']))
         plt.clf()
         plt.close()
 
@@ -205,22 +205,22 @@ def save_validation_images(gt, dt_bbox, dt_segm, im_ids, save_dir):
 if __name__ == '__main__':
 
     save_ims = True
-    calc_metrics = False
-
-    results_data = {
-        'annotation_file': "../datasets/CVC-VideoClinicDBtrain_valid/annotations/val.json",
-        'images_folder': "../datasets/CVC-VideoClinicDBtrain_valid/images/",
-        'results_folder': "../coco_cvcdb_etis/inference/cvc-clinic-val/",
-        'split': "val"
-
-    }
+    calc_metrics = True
 
     # results_data = {
-    #    'annotation_file': "../datasets/cvcvideoclinicdbtest/annotations/test.json",
-    #    'images_folder': "../datasets/cvcvideoclinicdbtest/images/",
-    #    'results_folder': "../out_mask_50/inference/cvc-clinic-test/",
-    #    'split': "test"
+    #     'annotation_file': "../datasets/CVC-VideoClinicDBtrain_valid/annotations/val.json",
+    #     'images_folder': "../datasets/CVC-VideoClinicDBtrain_valid/images/",
+    #     'results_folder': "../out/test_cj/inference/cvc-clinic-val/",
+    #     'split': "val"
+    #
     # }
+
+    results_data = {
+       'annotation_file': "../datasets/cvcvideoclinicdbtest/annotations/test.json",
+       'images_folder': "../datasets/cvcvideoclinicdbtest/images/",
+       'results_folder': "../out/test_cj/inference/cvc-clinic-test/",
+       'split': "test"
+    }
 
     # results_data = {
     #     'annotation_file': "../datasets/CVC-classification/annotations/train.json",

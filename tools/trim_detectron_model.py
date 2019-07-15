@@ -31,7 +31,7 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         "--cfg",
-        default="../configs/caffe2/e2e_mask_rcnn_R_50_FPN_1x_caffe2_cj.yaml",
+        default="../configs/caffe2/e2e_mask_rcnn_R_50_FPN_1x.yaml",
         help="path to config file",
         type=str,
     )
