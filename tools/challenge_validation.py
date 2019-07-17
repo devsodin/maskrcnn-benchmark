@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 from PIL import Image
 from matplotlib import pyplot as plt
-
+from scipy.ndimage.measurements import label
 
 def polyp_detection_results(csv_folder, output_folder, gt_folder, threshold=0.0):
     if not os.path.exists(output_folder):
@@ -123,7 +123,11 @@ def polyp_localization_challenge(csv_folder, output_folder, gt_folder, threshold
         for frame in sorted(os.listdir(vid_folder)):
             polyp_n = int(frame.split("_")[0].split("-")[1])
             im_frame = Image.open(os.path.join(vid_folder, frame))
-            is_polyp = np.asarray(im_frame).sum() > 0
+            im_frame_np = np.asarray(im_frame)
+            is_polyp = im_frame_np.sum() > 0
+
+
+            labeled_frame, max_polyp = label(im_frame)
 
             if is_polyp and first_polyp == -1:
                 first_polyp = polyp_n
@@ -138,40 +142,49 @@ def polyp_localization_challenge(csv_folder, output_folder, gt_folder, threshold
                 else:
                     tn += 1
             else:
-                detected_polyps = []
+                already_detected = []
 
-                for detection in frame_output.iterrows()[1]:
-                    centroid_x = detection[2]
-                    centroid_y = detection[3]
+                for detection in frame_output.iterrows():
+                    detection = detection[1]
+                    frame_pred = True
+                    centroid_x = int(detection[2])
+                    centroid_y = int(detection[1])
 
-                    if is_polyp:
-                        if np.asarray(im_frame)[centroid_x, centroid_y] == 1:
-                            # checkdet = find(detlabels == gtlabel(pos_x, pos_y));
-                            # if (isempty(checkdet))
-                            #     tp(vid) = tp(vid) + 1;
-                            #     detlabels = [detlabels;
-                            #     gtlabel(pos_x, pos_y)];
-                            #     if (firstdetpolyp == 0)
-                            #         firstdetpolyp = iframe;
-                            #     end
-                            # end
-                            pass
+                    if frame_pred:
+                        if is_polyp:
+                            print(im_frame_np.shape)
+                            if im_frame_np[centroid_x, centroid_y] == 1:
+                                print(labeled_frame[centroid_x, centroid_y])
+                                if labeled_frame[centroid_x, centroid_y] not in already_detected:
+                                    tp += 1
+                                    already_detected += [labeled_frame[centroid_x, centroid_y]]
+
+                                    if first_detected_polyp == -1:
+                                        first_detected_polyp = polyp_n
+                            else:
+                                fp += 1
                         else:
-                            fp + 1
+                            fp += 1
                     else:
                         if not is_polyp:
                             tn += 1
 
-                # detected = labels
-                # detected =
+                detected_in_frame = len(set(already_detected))
+                fn += (max_polyp - detected_in_frame)
 
         rt = first_detected_polyp - first_polyp if first_detected_polyp != -1 else -1
+
+        print(vid_name, [tp, fp, fn, tn, rt], len(sorted(os.listdir(vid_folder))), sum([tp, fp, fn, tn, rt]))
 
 
 if __name__ == '__main__':
     detection_csv = pd.DataFrame(
         columns=["TP", "FP", "FN", "TN", "RT", "Acc", "Pre", "Rec", "F_score", "Reaction_time"])
     for threshold in range(0, 10):
-        polyp_detection_results("/home/yael/Downloads/challenge_CVC_2/challenge/Detection/CVC2/",
-                                "/home/yael/Downloads/challenge_CVC_2/challenge/res_yael/Detection/CVC2/",
+        # polyp_detection_results("/home/yael/Downloads/challenge_CVC_2/challenge/Detection/CVC2/",
+        #                         "/home/yael/Downloads/challenge_CVC_2/challenge/res_yael/Detection/CVC2/",
+        #                         "/home/yael/Downloads/PolypDetectionTest/GT", threshold=threshold / 10)
+
+        polyp_localization_challenge("/home/yael/Downloads/challenge_CVC_2/challenge/Localization/CVC2/",
+                                "/home/yael/Downloads/challenge_CVC_2/challenge/res_yael/Localization/CVC2/",
                                 "/home/yael/Downloads/PolypDetectionTest/GT", threshold=threshold / 10)
