@@ -158,8 +158,9 @@ def save_validation_images(gt, dt_bbox, dt_segm, im_ids, save_dir):
 
         print("validating ", results_data['images_folder'] + gt.imgs[im_id]['file_name'])
 
-        fig, ax = plt.subplots()
-        ax.imshow(plt.imread(results_data['images_folder'] + gt.imgs[im_id]['file_name']))
+        fig, (ax_orig, ax_masks) = plt.subplots(2, 1, figsize=(10,15))
+        ax_orig.imshow(plt.imread(results_data['images_folder'] + gt.imgs[im_id]['file_name']))
+        ax_masks.imshow(plt.imread(results_data['images_folder'] + gt.imgs[im_id]['file_name']))
 
         if len(gt_annots) > 0:
             gt_bboxes = []
@@ -176,7 +177,7 @@ def save_validation_images(gt, dt_bbox, dt_segm, im_ids, save_dir):
             p.set_facecolor('none')
             p.set_edgecolor(gt_color)
             p.set_linewidth(3)
-            ax.add_collection(p)
+            ax_masks.add_collection(p)
 
         if len(pred_annots) > 0:
             pred_bboxes = []
@@ -194,9 +195,13 @@ def save_validation_images(gt, dt_bbox, dt_segm, im_ids, save_dir):
             p.set_edgecolor(pred_color)
             p.set_linewidth(3)
 
-            ax.add_collection(p)
+            ax_masks.add_collection(p)
         print("saving to: ", os.path.join(save_dir, gt.imgs[im_id]['file_name']))
         #plt.show()
+
+        ax_orig.axis('off')
+        ax_masks.axis('off')
+        plt.tight_layout()
         plt.savefig(os.path.join(save_dir, gt.imgs[im_id]['file_name']))
         plt.clf()
         plt.close()
@@ -210,17 +215,16 @@ if __name__ == '__main__':
     # results_data = {
     #     'annotation_file': "../datasets/CVC-VideoClinicDBtrain_valid/annotations/val.json",
     #     'images_folder': "../datasets/CVC-VideoClinicDBtrain_valid/images/",
-    #     'results_folder': "../out/test_cj/inference/cvc-clinic-val/",
-    #     'split': "val"
-    #
+    #     'results_folder': "../out/test_/inference/cvc-clinic-val/",
+    #     'split': "val" 
     # }
 
-    results_data = {
-       'annotation_file': "../datasets/cvcvideoclinicdbtest/annotations/test.json",
-       'images_folder': "../datasets/cvcvideoclinicdbtest/images/",
-       'results_folder': "../out/test_cj/inference/cvc-clinic-test/",
-       'split': "test"
-    }
+    # results_data = {
+    #    'annotation_file': "../datasets/cvcvideoclinicdbtest/annotations/test.json",
+    #    'images_folder': "../datasets/cvcvideoclinicdbtest/images/",
+    #    'results_folder': "../out/test_cj/inference/cvc-clinic-test/",
+    #    'split': "test"
+    # }
 
     # results_data = {
     #     'annotation_file': "../datasets/CVC-classification/annotations/train.json",
@@ -229,12 +233,12 @@ if __name__ == '__main__':
     #     'split': "val"
     # }
 
-    # results_data = {
-    #     'annotation_file': "../datasets/ETIS-LaribPolypDB/annotations/train.json",
-    #     'images_folder': "../datasets/ETIS-LaribPolypDB/images/",
-    #     'results_folder': "../out_mask_50/inference/etis-larib/",
-    #     'split': "val"
-    # }
+    results_data = {
+         'annotation_file': "../datasets/ETIS-LaribPolypDB/annotations/train.json",
+         'images_folder': "../datasets/ETIS-LaribPolypDB/images/",
+         'results_folder': "../out/test_less_RP_shareExtractor/inference/etis-larib/",
+         'split': "val"
+    }
 
 
     gt_color = "blue"
