@@ -212,12 +212,12 @@ if __name__ == '__main__':
     save_ims = True
     calc_metrics = True
 
-    results_data = {
-        'annotation_file': "../datasets/CVC-VideoClinicDBtrain_valid/annotations/val.json",
-        'images_folder': "../datasets/CVC-VideoClinicDBtrain_valid/images/",
-        'results_folder': "../out/test_minsize/inference/cvc-clinic-val/",
-        'split': "val"
-    }
+    # results_data = {
+    #     'annotation_file': "../datasets/CVC-VideoClinicDBtrain_valid/annotations/val.json",
+    #     'images_folder': "../datasets/CVC-VideoClinicDBtrain_valid/images/",
+    #     'results_folder': "../out/test_minsize_anchors/inference/cvc-clinic-val/",
+    #     'split': "val"
+    # }
 
     # results_data = {
     #    'annotation_file': "../datasets/cvcvideoclinicdbtest/annotations/test.json",
@@ -233,12 +233,12 @@ if __name__ == '__main__':
     #     'split': "val"
     # }
 
-    # results_data = {
-    #      'annotation_file': "../datasets/ETIS-LaribPolypDB/annotations/train.json",
-    #      'images_folder': "../datasets/ETIS-LaribPolypDB/images/",
-    #      'results_folder': "../out/test_minsize/inference/etis-larib/",
-    #      'split': "val"
-    # }
+    results_data = {
+         'annotation_file': "../datasets/ETIS-LaribPolypDB/annotations/train.json",
+         'images_folder': "../datasets/ETIS-LaribPolypDB/images/",
+         'results_folder': "../out/test_minsize_anchors/inference/etis-larib/",
+         'split': "val"
+    }
 
 
     gt_color = "blue"

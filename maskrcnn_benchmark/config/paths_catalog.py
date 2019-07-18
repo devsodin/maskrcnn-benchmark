@@ -151,7 +151,7 @@ class DatasetCatalog(object):
                 factory="PascalVOCDataset",
                 args=args,
             )
-        elif "cvc-clinic" in name or 'cvc-classification' in name:
+        elif "cvc-" in name:
             data_dir = DatasetCatalog.DATA_DIR
             attrs = DatasetCatalog.DATASETS[name]
             args = dict(
