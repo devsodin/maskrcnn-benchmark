@@ -298,16 +298,16 @@ def _gen_csv_for_dataset():
 if __name__ == '__main__':
     train_seq = ["{:03d}".format(x) for x in range(1, 16)]
     val_seq = ["{:03d}".format(x) for x in range(16, 19)]
-    dataset_to_coco(ROOT_DIR_CVC_TRAIN_VAL, INFO_CVC, LICENSES, CATEGORIES_MULTI, train_seq, "train-multi.json",
-                    has_annotations=True)
-    dataset_to_coco(ROOT_DIR_CVC_TRAIN_VAL, INFO_CVC, LICENSES, CATEGORIES_MULTI, val_seq, "val-multi.json",
-                    has_annotations=True)
-
-    dataset_to_coco(ROOT_DIR_CVC_TEST, INFO_CVC, LICENSES, CATEGORIES_MULTI, None, "test-multi.json",
-                    has_annotations=False)
-
-    dataset_to_coco(ROOT_DIR_CVC_CLASSIFICATION, INFO_CVC, LICENSES, CATEGORIES_MULTI, None, "train-multi.json",
-                    has_annotations=True)
-
-    dataset_to_coco(ROOT_DIR_ETIS, INFO_ETIS, LICENSES, CATEGORIES_MULTI, None, "train.json-multi",
-                    has_annotations=True)
+    # dataset_to_coco(ROOT_DIR_CVC_TRAIN_VAL, INFO_CVC, LICENSES, CATEGORIES, train_seq, "train.json",
+    #                 has_annotations=True)
+    # dataset_to_coco(ROOT_DIR_CVC_TRAIN_VAL, INFO_CVC, LICENSES, CATEGORIES, val_seq, "val.json",
+    #                 has_annotations=True)
+    #
+    # dataset_to_coco(ROOT_DIR_CVC_TEST, INFO_CVC, LICENSES, CATEGORIES, None, "test-multi.json",
+    #                 has_annotations=False)
+    #
+    # dataset_to_coco(ROOT_DIR_CVC_CLASSIFICATION, INFO_CVC, LICENSES, CATEGORIES, None, "train.json",
+    #                 has_annotations=True)
+    #
+    # dataset_to_coco(ROOT_DIR_ETIS, INFO_ETIS, LICENSES, CATEGORIES, None, "train.json",
+    #                 has_annotations=True)

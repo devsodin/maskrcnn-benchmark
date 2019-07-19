@@ -126,7 +126,7 @@ _C.MODEL.GROUP_NORM.EPSILON = 1e-5
 # ---------------------------------------------------------------------------- #
 _C.MODEL.RPN = CN()
 _C.MODEL.RPN.USE_FPN = False
-# Base RPN anchor sizes given in absolute pixels w.r.t. the scaled network input
+# Base RPN anchor sizes given in absolute pixels with respect to (w.r.t.) the scaled network input
 _C.MODEL.RPN.ANCHOR_SIZES = (32, 64, 128, 256, 512)
 # Stride of the feature map that RPN is attached.
 # For FPN, number of strides should match number of scales

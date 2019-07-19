@@ -2,8 +2,8 @@ from matplotlib import pyplot as plt
 from pycocotools import coco, cocoeval
 from matplotlib.patches import Polygon
 from matplotlib.collections import PatchCollection
-from matplotlib.colors import  ColorConverter
-
+from matplotlib.colors import ColorConverter
+from argparse import ArgumentParser
 from pycocotools.mask import decode, encode
 import pandas as pd
 import os
@@ -127,6 +127,7 @@ def localize_on_image(dt, image, localization):
             localization.sort_index()
 
 
+
 def show_bbox(bbox):
     [bbox_x, bbox_y, bbox_w, bbox_h] = bbox
     poly = [[bbox_x, bbox_y], [bbox_x, bbox_y + bbox_h], [bbox_x + bbox_w, bbox_y + bbox_h],
@@ -158,7 +159,7 @@ def save_validation_images(gt, dt_bbox, dt_segm, im_ids, save_dir):
 
         print("validating ", results_data['images_folder'] + gt.imgs[im_id]['file_name'])
 
-        fig, (ax_orig, ax_masks) = plt.subplots(2, 1, figsize=(10,15))
+        fig, (ax_orig, ax_masks) = plt.subplots(2, 1, figsize=(10, 15))
         ax_orig.imshow(plt.imread(results_data['images_folder'] + gt.imgs[im_id]['file_name']))
         ax_masks.imshow(plt.imread(results_data['images_folder'] + gt.imgs[im_id]['file_name']))
 
@@ -197,7 +198,7 @@ def save_validation_images(gt, dt_bbox, dt_segm, im_ids, save_dir):
 
             ax_masks.add_collection(p)
         print("saving to: ", os.path.join(save_dir, gt.imgs[im_id]['file_name']))
-        #plt.show()
+        # plt.show()
 
         ax_orig.axis('off')
         ax_masks.axis('off')
@@ -209,37 +210,45 @@ def save_validation_images(gt, dt_bbox, dt_segm, im_ids, save_dir):
 
 if __name__ == '__main__':
 
-    save_ims = True
-    calc_metrics = True
+    ap = ArgumentParser()
+    ap.add_argument("--ims", action='store_true', default=False)
+    ap.add_argument("--metrics", action='store_true', default=True)
+    ap.add_argument("--dataset", type=str)
 
-    # results_data = {
-    #     'annotation_file': "../datasets/CVC-VideoClinicDBtrain_valid/annotations/val.json",
-    #     'images_folder': "../datasets/CVC-VideoClinicDBtrain_valid/images/",
-    #     'results_folder': "../out/test_minsize_anchors/inference/cvc-clinic-val/",
-    #     'split': "val"
-    # }
-
-    # results_data = {
-    #    'annotation_file': "../datasets/cvcvideoclinicdbtest/annotations/test.json",
-    #    'images_folder': "../datasets/cvcvideoclinicdbtest/images/",
-    #    'results_folder': "../out/test_cj/inference/cvc-clinic-test/",
-    #    'split': "test"
-    # }
-
-    # results_data = {
-    #     'annotation_file': "../datasets/CVC-classification/annotations/train.json",
-    #     'images_folder': "../datasets/CVC-classification/images/",
-    #     'results_folder': "../out_mask_50/inference/cvc-classification/",
-    #     'split': "val"
-    # }
-
-    results_data = {
-         'annotation_file': "../datasets/ETIS-LaribPolypDB/annotations/train.json",
-         'images_folder': "../datasets/ETIS-LaribPolypDB/images/",
-         'results_folder': "../out/test_minsize_anchors/inference/etis-larib/",
-         'split': "val"
+    data_dict = {
+        "cvc-val": {
+            'annotation_file': "../datasets/CVC-VideoClinicDBtrain_valid/annotations/val.json",
+            'images_folder': "../datasets/CVC-VideoClinicDBtrain_valid/images/",
+            'results_folder': "../out/test_minsize_anchors/inference/cvc-clinic-val/",
+            'split': "val"
+        },
+        "cvc-test": {
+            'annotation_file': "../datasets/cvcvideoclinicdbtest/annotations/test.json",
+            'images_folder': "../datasets/cvcvideoclinicdbtest/images/",
+            'results_folder': "../out/test_minsize_anchors/inference/cvc-clinic-test/",
+            'split': "test"
+        },
+        "cvc-classif": {
+            'annotation_file': "../datasets/ETIS-LaribPolypDB/annotations/train.json",
+            'images_folder': "../datasets/ETIS-LaribPolypDB/images/",
+            'results_folder': "../out/test_minsize_anchors/inference/etis-larib/",
+            'split': "val"
+        },
+        "etis": {
+            'annotation_file': "../datasets/CVC-classification/annotations/train.json",
+            'images_folder': "../datasets/CVC-classification/images/",
+            'results_folder': "../out_mask_50/inference/cvc-classification/",
+            'split': "val"
+        }
     }
 
+    params = ap.parse_args()
+
+    print(params)
+    print(params.dataset)
+    results_data = data_dict[params.dataset]
+    save_ims = params.ims
+    calc_metrics = params.metrics
 
     gt_color = "blue"
     pred_color = "gold"
