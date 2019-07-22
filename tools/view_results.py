@@ -106,9 +106,11 @@ def detect_on_image(detections, dt, image):
     if anns:
         detect = 1
         for ann in dt.loadAnns(anns):
-            confidence += ann['score']
+            if confidence == 0:
+                confidence = ann['score']
+            if confidence < ann['score']:
+                confidence = ann['score']
 
-        confidence /= len(anns)
     detections.loc[-1] = [image['file_name'], detect, confidence]
     detections.index += 1
     detections.sort_index()
@@ -219,25 +221,25 @@ if __name__ == '__main__':
         "cvc-val": {
             'annotation_file': "../datasets/CVC-VideoClinicDBtrain_valid/annotations/val.json",
             'images_folder': "../datasets/CVC-VideoClinicDBtrain_valid/images/",
-            'results_folder': "../out/test_minsize_anchors/inference/cvc-clinic-val/",
+            'results_folder': "../out/params_08_025/inference/cvc-clinic-val/",
             'split': "val"
         },
         "cvc-test": {
             'annotation_file': "../datasets/cvcvideoclinicdbtest/annotations/test.json",
             'images_folder': "../datasets/cvcvideoclinicdbtest/images/",
-            'results_folder': "../out/test_minsize_anchors/inference/cvc-clinic-test/",
+            'results_folder': "../out/params_08_025/inference/cvc-clinic-test/",
             'split': "test"
         },
         "cvc-classif": {
             'annotation_file': "../datasets/ETIS-LaribPolypDB/annotations/train.json",
             'images_folder': "../datasets/ETIS-LaribPolypDB/images/",
-            'results_folder': "../out/test_minsize_anchors/inference/etis-larib/",
+            'results_folder': "../out/params_08_025/inference/etis-larib/",
             'split': "val"
         },
         "etis": {
             'annotation_file': "../datasets/CVC-classification/annotations/train.json",
             'images_folder': "../datasets/CVC-classification/images/",
-            'results_folder': "../out_mask_50/inference/cvc-classification/",
+            'results_folder': "../out/params_08_025/inference/cvc-classification/",
             'split': "val"
         }
     }

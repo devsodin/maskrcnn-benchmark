@@ -4,16 +4,18 @@ import os
 
 import cv2
 import numpy as np
-from PIL import Image
-from pycocotools import mask
 import pandas as pd
+from PIL import Image
+from matplotlib import pyplot as plt
+from pycocotools import mask
+from scipy.ndimage import label
 
 ROOT_DIR_CVC_TRAIN_VAL = "../datasets/CVC-VideoClinicDBtrain_valid"
 ROOT_DIR_CVC_TEST = "../datasets/cvcvideoclinicdbtest"
 ROOT_DIR_CVC_CLASSIFICATION = "../datasets/CVC-classification"
 ROOT_DIR_ETIS = "../datasets/ETIS-LaribPolypDB"
 
-MASK_EXTENSION = "_polyp"
+MASK_EXTENSION = "_Polyp"
 
 INFO_CVC = {
     "description": "CVC-clinic",
@@ -101,6 +103,19 @@ def get_mask_images(mask_dir, mask_file):
     if not os.path.exists(mask_dir):
         return []
     else:
+        mask_file = mask_file.split(".")[0] + "_Polyp.tif" #+ mask_file.split(".")[1]
+        path_file = os.path.join(mask_dir, mask_file)
+
+        print(mask_file)
+        r_im = Image.open(path_file).convert('L')
+        r_im = np.array(r_im)
+        print(r_im.shape)
+
+        kernel = np.ones((3, 3))
+        im, count = label(r_im, structure=kernel)
+        if count > 1:
+            print("multiple masks", count, os.path.join(mask_dir, mask_file))
+            #split_images_masks(os.path.join(mask_dir, mask_file))
         return filter(is_annot_from_image, os.listdir(mask_dir))
 
 
@@ -221,7 +236,6 @@ def dataset_to_coco(root_folder: str, info, licenses, categories, seqs: list or 
 
 def rename_images(root_dir):
     # TODO Refactor per dataset
-    return
 
     images_dir = os.path.join(root_dir, "images")
     MASKS_DIR = os.path.join(root_dir, "masks")
@@ -229,33 +243,48 @@ def rename_images(root_dir):
         extension = im.split(".")[1]
 
         # CVC train-val
-        seq = int(im.split("-")[0])
-        im_number = int(im.split(".")[0].split("-")[1])
-        new_name = "{:03d}-{:04d}{}.{}".format(seq, im_number, MASK_EXTENSION, extension)
+        # seq = int(im.split("-")[0])
+        # im_number = int(im.split(".")[0].split("-")[1])
+        # new_name = "{:03d}-{:04d}{}.{}".format(seq, im_number, MASK_EXTENSION, extension)
 
         # CVC test
         # NO HAY MASCARAS
 
         # ETIS-Larib
-        im_number = int(im.split(".")[0][1:])
-        new_name = "{:03d}{}.{}".format(im_number, MASK_EXTENSION, extension)
-
-        os.rename(os.path.join(MASKS_DIR, im), os.path.join(MASKS_DIR, new_name))
+        # im_number = int(im.split(".")[0][1:])
+        # new_name = "{:03d}{}.{}".format(im_number, MASK_EXTENSION, extension)
+        #
+        # os.rename(os.path.join(MASKS_DIR, im), os.path.join(MASKS_DIR, new_name))
 
     for im in os.listdir(images_dir):
         extension = im.split(".")[1]
 
         # CVC train-val
         # CVC test
-        seq = int(im.split("-")[0])
-        im_number = int(im.split(".")[0].split("-")[1])
-        new_name = "{:03d}-{:04d}.{}".format(seq, im_number, extension)
+        # seq = int(im.split("-")[0])
+        # im_number = int(im.split(".")[0].split("-")[1])
+        # new_name = "{:03d}-{:04d}.{}".format(seq, im_number, extension)
 
         # ETIS-Larib
-        # im_number = int(im.split(".")[0])
-        # new_name = "{:03d}.{}".format(im_number, extension)
+        im_number = int(im.split(".")[0])
+        new_name = "{:03d}.{}".format(im_number, extension)
 
         os.rename(os.path.join(images_dir, im), os.path.join(images_dir, new_name))
+
+
+def split_images_masks(image):
+    name, ext = os.path.basename(image).split(".")
+    path = os.path.dirname(image)
+
+    r_im = plt.imread(image)
+    kernel = np.ones((3, 3))
+    im, count = label(r_im, structure=kernel)
+
+    for cont in range(count):
+        from scipy.misc import imsave
+        plt.imshow(np.where(im == cont + 1, r_im, 0))
+        imsave(os.path.join(path, "{}_{}.{}".format(name, cont + 1, ext)), np.where(im == cont + 1, r_im, 0))
+    os.remove(image)
 
 
 def _gen_csv_for_dataset():
@@ -296,18 +325,22 @@ def _gen_csv_for_dataset():
 
 
 if __name__ == '__main__':
+    rename_images(ROOT_DIR_ETIS)
+
     train_seq = ["{:03d}".format(x) for x in range(1, 16)]
     val_seq = ["{:03d}".format(x) for x in range(16, 19)]
+
     # dataset_to_coco(ROOT_DIR_CVC_TRAIN_VAL, INFO_CVC, LICENSES, CATEGORIES, train_seq, "train.json",
     #                 has_annotations=True)
+
     # dataset_to_coco(ROOT_DIR_CVC_TRAIN_VAL, INFO_CVC, LICENSES, CATEGORIES, val_seq, "val.json",
     #                 has_annotations=True)
-    #
-    # dataset_to_coco(ROOT_DIR_CVC_TEST, INFO_CVC, LICENSES, CATEGORIES, None, "test-multi.json",
+
+    # dataset_to_coco(ROOT_DIR_CVC_TEST, INFO_CVC, LICENSES, CATEGORIES, None, "test.json",
     #                 has_annotations=False)
     #
-    # dataset_to_coco(ROOT_DIR_CVC_CLASSIFICATION, INFO_CVC, LICENSES, CATEGORIES, None, "train.json",
-    #                 has_annotations=True)
+    dataset_to_coco(ROOT_DIR_CVC_CLASSIFICATION, INFO_CVC, LICENSES, CATEGORIES, None, "train.json",
+                    has_annotations=True)
     #
     # dataset_to_coco(ROOT_DIR_ETIS, INFO_ETIS, LICENSES, CATEGORIES, None, "train.json",
     #                 has_annotations=True)

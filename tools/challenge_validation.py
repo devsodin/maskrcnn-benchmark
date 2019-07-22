@@ -171,10 +171,10 @@ def generate_results_per_video(videos, confidences, thresholds, gt):
 
 
 def main():
-    folder_detection = "/home/yael/test_anchors+08/detection/"
-    folder_localization = "/home/yael/test_anchors+08/localization/"
+    folder_detection = "../out/test_minsize_anchors/inference/cvc-clinic-test/detection/"
+    folder_localization = "../out/test_minsize_anchors/inference/cvc-clinic-test/localization/"
     folder_gt = "/home/yael/Downloads/PolypDetectionTest/GT"
-    folder_output = "/home/yael/test_anchors+08/res/"
+    folder_output = "../out/test_minsize_anchors/inference/cvc-clinic-test/res/"
     folder_output_detection = os.path.join(folder_output, "detection")
     folder_output_localization = os.path.join(folder_output, "localization")
     average_detection_output_file = os.path.join(folder_output_detection, "average.csv")
