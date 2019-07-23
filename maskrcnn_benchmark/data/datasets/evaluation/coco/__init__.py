@@ -9,6 +9,7 @@ def coco_evaluation(
     iou_types,
     expected_results,
     expected_results_sigma_tol,
+    **_,
 ):
     return do_coco_evaluation(
         dataset=dataset,

@@ -1,10 +1,154 @@
+import logging
 import os
 
 import numpy as np
 import pandas as pd
 from PIL import Image
 from matplotlib import pyplot as plt
+from pycocotools import coco
 from scipy.ndimage.measurements import label
+
+
+def calc_challenge_metrics(loc_df, detect_df, dt, out_folder, split):
+    for image in dt.loadImgs(ids=dt.getImgIds()):
+        detect_on_image(detect_df, dt, image)
+        localize_on_image(dt, image, loc_df)
+
+    detect_df.sort_values('image', inplace=True)
+    detect_df.reset_index(inplace=True, drop=True)
+    loc_df.sort_values('image', inplace=True)
+    loc_df.reset_index(inplace=True, drop=True)
+
+    detect_csvs = reformat_csvs(detect_df, split=split)
+    loc_csvs = reformat_csvs(loc_df, split=split)
+
+    if not os.path.exists(os.path.join(out_folder, "detection")):
+        os.makedirs(os.path.join(out_folder, "detection"))
+
+    for k, csv in detect_csvs.items():
+        csv.to_csv(os.path.join(out_folder, "detection", "{}.csv".format(k)), index=False, header=False)
+
+    if not os.path.exists(os.path.join(out_folder, "localization")):
+        os.makedirs(os.path.join(out_folder, "localization"))
+
+    for k, csv in loc_csvs.items():
+        csv.to_csv(os.path.join(out_folder, "localization", "{}.csv".format(k)), index=False, header=False)
+
+
+def detect_on_image(detections, dt, image):
+    detect = 0
+    confidence = 0
+    anns = dt.getAnnIds(imgIds=image['id'])
+    if anns:
+        detect = 1
+        for ann in dt.loadAnns(anns):
+            if confidence == 0:
+                confidence = ann['score']
+            if confidence < ann['score']:
+                confidence = ann['score']
+
+    detections.loc[-1] = [image['file_name'], detect, confidence]
+    detections.index += 1
+    detections.sort_index()
+
+
+def localize_on_image(dt, image, localization):
+    anns = dt.getAnnIds(imgIds=image['id'])
+    if anns:
+        for ann in dt.loadAnns(anns):
+            x, y, w, h = ann['bbox']
+            centroid_x = x + 0.5 * w
+            centroid_y = y + 0.5 * h
+
+            localization.loc[-1] = [image['file_name'], centroid_x, centroid_y, ann['score']]
+            localization.index += 1
+            localization.sort_index()
+
+
+def delete_seq_code(csv):
+    csv['image'] = csv.image.map(lambda x: int(x.split("-")[1].split(".")[0]))
+    return csv
+
+
+def reformat_csvs(detections, split='test'):
+    d = {}
+
+    if split == 'val':
+        seqs = range(16, 19)
+    elif split == 'test':
+        seqs = range(1, 19)
+    else:
+        raise ('invalid split - {}'.format(split))
+
+    for seq in seqs:
+        seq_rows = detections.loc[detections['image'].str.contains("{:03d}-".format(seq))].copy(deep=True)
+        seq_rows = delete_seq_code(seq_rows)
+        seq_rows.sort_values(by='image', inplace=True)
+        d[seq] = seq_rows
+
+    return d
+
+
+def do_giana_eval(results_folder, folder_detection, folder_localization, folder_gt, root_folder_output, annot_file):
+
+    logger = logging.getLogger("maskrcnn_benchmark.inference")
+    logger.info("Evaluating results (GIANA Challenge)")
+
+    detection_df = pd.DataFrame(columns=['image', "has_polyp", "confidence"])
+    localization_df = pd.DataFrame(columns=['image', "center_x", "center_y", "confidence"])
+
+    # ground truth
+    gt = coco.COCO(annot_file)
+
+    # predictions
+    dt_bbox = gt.loadRes(os.path.join(results_folder, "bbox.json"))
+    calc_challenge_metrics(localization_df, detection_df, dt_bbox, results_folder, "test")
+    logger.info("Metrics calculated (GIANA Challenge)")
+
+    folder_output_detection = os.path.join(root_folder_output, "detection")
+    folder_output_localization = os.path.join(root_folder_output, "localization")
+    average_detection_output_file = os.path.join(folder_output_detection, "average.csv")
+    average_localization_output_file = os.path.join(folder_output_localization, "average.csv")
+    thresholds = [x / 10 for x in range(10)]
+
+    if not os.path.exists(folder_output_detection):
+        os.makedirs(folder_output_detection)
+    if not os.path.exists(folder_output_localization):
+        os.makedirs(folder_output_localization)
+
+    files_detection = sorted(os.listdir(folder_detection))
+    files_localization = sorted(os.listdir(folder_localization))
+
+    results_detection = {}
+    results_localization = {}
+    for detection, localization in zip(files_detection, files_localization):
+        detection_csv = os.path.join(folder_detection, detection)
+        detection_df = pd.read_csv(detection_csv, header=None)
+        detection_confidence = detection_df.shape[1] > 2
+
+        localization_csv = os.path.join(folder_localization, localization)
+        localization_df = pd.read_csv(localization_csv, header=None)
+        localization_confidence = localization_df.shape[1] > 3
+
+        # both named the same
+        vid_name = localization_csv.split("/")[-1].split(".")[0]
+        gt_vid_folder = os.path.join(folder_gt, vid_name)
+
+        logger.info("Processing video {} - (GIANA Challenge)".format(vid_name))
+        res_detection, res_localization = generate_results_per_video((detection_df, localization_df),
+                                                                     (detection_confidence, localization_confidence),
+                                                                     thresholds, gt_vid_folder)
+
+        pd.DataFrame.from_dict(res_detection, columns=["TP", "FP", "FN", "TN", "RT"], orient='index').to_csv(
+            os.path.join(folder_output_detection, "d{}.csv".format(vid_name)))
+        results_detection[vid_name] = res_detection
+
+        pd.DataFrame.from_dict(res_localization, columns=["TP", "FP", "FN", "TN", "RT"], orient='index').to_csv(
+            os.path.join(folder_output_localization, "l{}.csv".format(vid_name)))
+        results_localization[vid_name] = res_localization
+
+    calculate_average_results(results_detection, thresholds, average_detection_output_file)
+    calculate_average_results(results_localization, thresholds, average_localization_output_file)
 
 
 def calculate_average_results(results_dict: dict, thresholds, output_file):
@@ -18,7 +162,6 @@ def calculate_average_results(results_dict: dict, thresholds, output_file):
         for vid, res_dict in results_dict.items():
             results = [res + new for res, new in zip(results, res_dict[threshold][:-1])]
             sums = [val + new for val, new in zip(sums, results)]
-            print(sums)
             srt = srt + res_dict[threshold][-1] if res_dict[threshold][-1] != -1 else srt
             drt = drt + 1 if res_dict[threshold][-1] != -1 else drt
 
@@ -34,7 +177,6 @@ def calculate_average_results(results_dict: dict, thresholds, output_file):
         avg.index += 1
         avg.sort_index()
         avg.reset_index(inplace=True, drop=True)
-    print(avg)
 
     avg.to_csv(output_file)
 
@@ -163,73 +305,7 @@ def generate_results_per_video(videos, confidences, thresholds, gt):
         # TODO change plots
         res_detection, _, _ = process_video_for_detection(videos[0], confidences[0], threshold, gt)
         res_localization = process_video_for_localization(videos[1], confidences[1], threshold, gt)
-        print(threshold, "done")
 
         detect_dict[threshold] = res_detection
         local_dict[threshold] = res_localization
     return detect_dict, local_dict
-
-
-def do_giana_eval(folder_detection, folder_localization, folder_gt, root_folder_output):
-    folder_output_detection = os.path.join(root_folder_output, "detection")
-    folder_output_localization = os.path.join(root_folder_output, "localization")
-    average_detection_output_file = os.path.join(folder_output_detection, "average.csv")
-    average_localization_output_file = os.path.join(folder_output_localization, "average.csv")
-    thresholds = [x / 10 for x in range(10)]
-
-    if not os.path.exists(folder_output_detection):
-        os.makedirs(folder_output_detection)
-    if not os.path.exists(folder_output_localization):
-        os.makedirs(folder_output_localization)
-
-    files_detection = sorted(os.listdir(folder_detection))
-    files_localization = sorted(os.listdir(folder_localization))
-
-    results_detection = {}
-    results_localization = {}
-    for detection, localization in zip(files_detection, files_localization):
-        detection_csv = os.path.join(folder_detection, detection)
-        detection_df = pd.read_csv(detection_csv, header=None)
-        detection_confidence = detection_df.shape[1] > 2
-
-        localization_csv = os.path.join(folder_localization, localization)
-        localization_df = pd.read_csv(localization_csv, header=None)
-        localization_confidence = localization_df.shape[1] > 3
-
-        # both named the same
-        vid_name = localization_csv.split("/")[-1].split(".")[0]
-        gt_vid_folder = os.path.join(folder_gt, vid_name)
-
-        res_detection, res_localization = generate_results_per_video((detection_df, localization_df),
-                                                                     (detection_confidence, localization_confidence),
-                                                                     thresholds, gt_vid_folder)
-
-        pd.DataFrame.from_dict(res_detection, columns=["TP", "FP", "FN", "TN", "RT"], orient='index').to_csv(
-            os.path.join(folder_output_detection, "d{}.csv".format(vid_name)))
-        results_detection[vid_name] = res_detection
-
-        pd.DataFrame.from_dict(res_localization, columns=["TP", "FP", "FN", "TN", "RT"], orient='index').to_csv(
-            os.path.join(folder_output_localization, "l{}.csv".format(vid_name)))
-        results_localization[vid_name] = res_localization
-
-    calculate_average_results(results_detection, thresholds, average_detection_output_file)
-    calculate_average_results(results_localization, thresholds, average_localization_output_file)
-
-
-if __name__ == '__main__':
-    from argparse import ArgumentParser
-
-    ap = ArgumentParser()
-    ap.add_argument("--res", "--results_root", type=str, required=True)
-    ap.add_argument("--out", "--output_folder", type=str, default=None)
-
-    params = ap.parse_args()
-    folder_detection = os.path.join(params.res, "detection")
-    folder_localization = os.path.join(params.res, "localization")
-    output_folder = params.out
-
-    if output_folder is None:
-        output_folder = os.path.join(params.res, "results_giana")
-    folder_gt = "/home/yael/PycharmProjects/maskrcnn-benchmark/datasets/cvcvideoclinicdbtest/GT"
-
-    do_giana_eval(folder_detection, folder_localization, folder_gt, output_folder)

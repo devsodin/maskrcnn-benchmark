@@ -4,38 +4,15 @@ from torchvision.datasets.coco import CocoDetection
 from maskrcnn_benchmark.structures.bounding_box import BoxList
 from maskrcnn_benchmark.structures.segmentation_mask import SegmentationMask
 
-min_keypoints_per_image = 10
-
-
-def _has_only_empty_bbox(anno):
-    return all(any(o <= 1 for o in obj["bbox"][2:]) for obj in anno)
-
-
-def has_valid_annotation(anno):
-    # if it's empty, there is no annotation
-    if len(anno) == 0:
-        return False
-    # if all boxes have close to zero area, there is no annotation
-    if _has_only_empty_bbox(anno):
-        return False
-
-    return False
-
 
 class CVCClinicDataset(CocoDetection):
-    def __init__(self, annotation_file, root, remove_unannotated_images=False, transforms=None):
+    def __init__(self, annotation_file, root, name, transforms=None):
         super(CVCClinicDataset, self).__init__(root, annotation_file)
+        self.root = root
+        self.name = name
+        self.annotation_file = annotation_file
 
         self.ids = sorted(self.ids)
-
-        if remove_unannotated_images:
-            ids = []
-            for img_id in self.ids:
-                ann_ids = self.coco.getAnnIds(imgIds=img_id, iscrowd=None)
-                anno = self.coco.loadAnns(ann_ids)
-                if has_valid_annotation(anno):
-                    ids.append(img_id)
-            self.ids = ids
 
         self.categories = {cat['id']: cat['name'] for cat in self.coco.cats.values()}
 
@@ -47,7 +24,6 @@ class CVCClinicDataset(CocoDetection):
         }
         self.id_to_img_map = {k: v for k, v in enumerate(self.ids)}
         self._transforms = transforms
-        self._endoscope_mask = None
 
     def __getitem__(self, idx):
         image, annotation = super(CVCClinicDataset, self).__getitem__(idx)

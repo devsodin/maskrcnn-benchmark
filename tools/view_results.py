@@ -1,14 +1,13 @@
-from matplotlib import pyplot as plt
-from pycocotools import coco, cocoeval
-from matplotlib.patches import Polygon
-from matplotlib.collections import PatchCollection
-from matplotlib.colors import ColorConverter
-from argparse import ArgumentParser
-from pycocotools.mask import decode, encode
-import pandas as pd
 import os
+from argparse import ArgumentParser
 
 import numpy as np
+import pandas as pd
+from matplotlib import pyplot as plt
+from matplotlib.collections import PatchCollection
+from matplotlib.colors import ColorConverter
+from matplotlib.patches import Polygon
+from pycocotools import coco, cocoeval
 
 
 def showAnns(coco_object, anns, color):
@@ -129,7 +128,6 @@ def localize_on_image(dt, image, localization):
             localization.sort_index()
 
 
-
 def show_bbox(bbox):
     [bbox_x, bbox_y, bbox_w, bbox_h] = bbox
     poly = [[bbox_x, bbox_y], [bbox_x, bbox_y + bbox_h], [bbox_x + bbox_w, bbox_y + bbox_h],
@@ -138,10 +136,6 @@ def show_bbox(bbox):
     p = Polygon(poly, fill=False)
 
     return p
-
-
-def show_mask(mask):
-    return
 
 
 def evalutate(gt, dt, mode='bbox'):
@@ -187,6 +181,8 @@ def save_validation_images(gt, dt_bbox, dt_segm, im_ids, save_dir):
 
             for pred_annot in pred_annots:
                 pred_polygon = show_bbox(pred_annot["bbox"])
+                ax_masks.annotate("{:.2f}".format(pred_annot['score']), xy=pred_polygon.xy[1], annotation_clip=False,
+                                  color='white')
                 pred_bboxes.append(pred_polygon)
 
             annIds = dt_segm.getAnnIds(imgIds=im_id)
@@ -200,7 +196,7 @@ def save_validation_images(gt, dt_bbox, dt_segm, im_ids, save_dir):
 
             ax_masks.add_collection(p)
         print("saving to: ", os.path.join(save_dir, gt.imgs[im_id]['file_name']))
-        # plt.show()
+        #plt.show()
 
         ax_orig.axis('off')
         ax_masks.axis('off')
@@ -221,13 +217,13 @@ if __name__ == '__main__':
         "cvc-val": {
             'annotation_file': "../datasets/CVC-VideoClinicDBtrain_valid/annotations/val.json",
             'images_folder': "../datasets/CVC-VideoClinicDBtrain_valid/images/",
-            'results_folder': "../out/params_08_025/inference/cvc-clinic-val/",
+            'results_folder': "../out/params_085_025_bs/inference/cvc-clinic-val/",
             'split': "val"
         },
         "cvc-test": {
             'annotation_file': "../datasets/cvcvideoclinicdbtest/annotations/test.json",
             'images_folder': "../datasets/cvcvideoclinicdbtest/images/",
-            'results_folder': "../out/params_08_025/inference/cvc-clinic-test/",
+            'results_folder': "../out/params_085_025_bs/inference/cvc-clinic-test/",
             'split': "test"
         },
         "cvc-classif": {
@@ -265,10 +261,10 @@ if __name__ == '__main__':
     evalutate(gt, dt_bbox, 'bbox')
     evalutate(gt, det_segm, 'segm')
 
-    detection = pd.DataFrame(columns=['image', "has_polyp", "confidence"])
-    localization = pd.DataFrame(columns=['image', "center_x", "center_y", "confidence"])
+    detection_df = pd.DataFrame(columns=['image', "has_polyp", "confidence"])
+    localization_df = pd.DataFrame(columns=['image', "center_x", "center_y", "confidence"])
     if calc_metrics:
-        calc_challenge_metrics(localization, detection, dt_bbox, results_data['results_folder'], results_data['split'])
+        calc_challenge_metrics(localization_df, detection_df, dt_bbox, results_data['results_folder'], results_data['split'])
 
     if save_ims:
         im_ids = gt.getImgIds()

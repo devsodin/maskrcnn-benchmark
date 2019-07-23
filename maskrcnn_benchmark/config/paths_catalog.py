@@ -106,23 +106,28 @@ class DatasetCatalog(object):
         },
         "cvc-clinic-train": {
             "data_dir": "CVC-VideoClinicDBtrain_valid/images",
-            "ann_file": "CVC-VideoClinicDBtrain_valid/annotations/train.json"
+            "ann_file": "CVC-VideoClinicDBtrain_valid/annotations/train.json",
+            "name": "cvc-clinic-train"
         },
         "cvc-clinic-val": {
             "data_dir": "CVC-VideoClinicDBtrain_valid/images",
-            "ann_file": "CVC-VideoClinicDBtrain_valid/annotations/val.json"
+            "ann_file": "CVC-VideoClinicDBtrain_valid/annotations/val.json",
+            "name": "cvc-clinic-val"
         },
         "cvc-clinic-test": {
             "data_dir": "cvcvideoclinicdbtest/images",
-            "ann_file": "cvcvideoclinicdbtest/annotations/test.json"
+            "ann_file": "cvcvideoclinicdbtest/annotations/test.json",
+            "name": "cvc-clinic-test"
         },
         "cvc-classification": {
             "data_dir": "CVC-classification/images",
-            "ann_file": "CVC-classification/annotations/train.json"
+            "ann_file": "CVC-classification/annotations/train.json",
+            "name": "cvc-classification"
         },
         "etis-larib": {
             "data_dir": "ETIS-LaribPolypDB/images",
             "ann_file": "ETIS-LaribPolypDB/annotations/train.json",
+            "name": "etis-larib"
         }
 
     }
@@ -157,6 +162,7 @@ class DatasetCatalog(object):
             args = dict(
                 root=os.path.join(data_dir, attrs["data_dir"]),
                 annotation_file=os.path.join(data_dir, attrs["ann_file"]),
+                name=name,
             )
             return dict(
                 factory="CVCClinicDataset",
@@ -168,6 +174,7 @@ class DatasetCatalog(object):
             args = dict(
                 root=os.path.join(data_dir, attrs["data_dir"]),
                 annotation_file=os.path.join(data_dir, attrs["ann_file"]),
+                name=name,
             )
             return dict(
                 factory="ETISLaribDataset",

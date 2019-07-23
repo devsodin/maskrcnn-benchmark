@@ -24,8 +24,11 @@ def has_valid_annotation(anno):
 
 class ETISLaribDataset(CocoDetection):
 
-    def __init__(self, annotation_file, root, remove_unannotated_images=False, transforms=None):
+    def __init__(self, annotation_file, root, name, remove_unannotated_images=False, transforms=None):
         super(ETISLaribDataset, self).__init__(root, annotation_file)
+        self.root = root
+        self.name = name
+        self.annotation_file = annotation_file
 
         self.ids = sorted(self.ids)
 
