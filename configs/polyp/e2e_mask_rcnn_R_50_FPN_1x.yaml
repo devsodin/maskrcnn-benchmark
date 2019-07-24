@@ -16,8 +16,8 @@ MODEL:
     FG_IOU_THRESHOLD: 0.85
     BG_IOU_THRESHOLD: 0.25
     POSITIVE_FRACTION: 0.4
-
   ROI_HEADS:
+    SCORE_THRESH: 0.2
     USE_FPN: True
   ROI_BOX_HEAD:
     POOLER_RESOLUTION: 7
@@ -34,31 +34,32 @@ MODEL:
     POOLER_SAMPLING_RATIO: 2
     RESOLUTION: 28
     SHARE_BOX_FEATURE_EXTRACTOR: False
-    #POSTPROCESS_MASKS: True
   MASK_ON: True
 
 DATASETS:
-  TRAIN: ("cvc-clinic-train", "cvc-classification",)
-  TEST: ("cvc-clinic-val", "etis-larib", "cvc-clinic-test", )
+  TRAIN: ("cvc-clinic-train", "cvc-classification", )
+  TEST: ("cvc-clinic-val", "cvc-clinic-test", "etis-larib",)
 DATALOADER:
   SIZE_DIVISIBILITY: 32
 SOLVER:
 # 1 GPU
   BASE_LR: 0.0025
   WEIGHT_DECAY: 0.0001
-  STEPS: [0, 30000, 40000]
-  MAX_ITER: 5000
-  IMS_PER_BATCH: 4
+  STEPS: [0, 5000, 8000]
+  MAX_ITER: 10000
+#  STEPS: [0, 2500, 4000]
+#  MAX_ITER: 5000
+  IMS_PER_BATCH: 2
 # 4 GPUs:
 #  BASE_LR: 0.01
 #  MAX_ITER: 15000
 #  STEPS: [0, 7500, 10000]
-#  IMS_PER_BATCH: 32
-OUTPUT_DIR: "out/params_085_025_brightsat"
+#  IMS_PER_BATCH: 8
+OUTPUT_DIR: "out/thresh02"
 INPUT:
-  HUE: 0.15
-  BRIGHTNESS: 0.1
-  SATURATION: 0.1
+  HUE: 0.1
+  BRIGHTNESS: 0.05
+  SATURATION: 0.05
   VERTICAL_FLIP_PROB_TRAIN: 0.4
   MIN_SIZE_TRAIN: (384,)
   MIN_SIZE_TEST: 384

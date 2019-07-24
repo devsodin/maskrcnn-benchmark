@@ -171,6 +171,7 @@ def calculate_average_results(results_dict: dict, thresholds, output_file):
         rec = tp / (tp + fn)
         spec = tn / (fp + tn)
         mean_rt = srt / drt
+        results = [int(x) for x in results]
         row = results + [acc, pre, rec, spec, mean_rt]
         avg.loc[-1] = row
 

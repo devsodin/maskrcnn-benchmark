@@ -210,7 +210,7 @@ if __name__ == '__main__':
 
     ap = ArgumentParser()
     ap.add_argument("--ims", action='store_true', default=False)
-    ap.add_argument("--metrics", action='store_true', default=True)
+    ap.add_argument("--no_metrics", action='store_false', default=True)
     ap.add_argument("--dataset", type=str)
 
     data_dict = {
@@ -223,7 +223,7 @@ if __name__ == '__main__':
         "cvc-test": {
             'annotation_file': "../datasets/cvcvideoclinicdbtest/annotations/test.json",
             'images_folder': "../datasets/cvcvideoclinicdbtest/images/",
-            'results_folder': "../out/params_085_025_bs/inference/cvc-clinic-test/",
+            'results_folder': "../out/bs2/inference/cvc-clinic-test/",
             'split': "test"
         },
         "cvc-classif": {
@@ -246,7 +246,7 @@ if __name__ == '__main__':
     print(params.dataset)
     results_data = data_dict[params.dataset]
     save_ims = params.ims
-    calc_metrics = params.metrics
+    calc_metrics = params.no_metrics
 
     gt_color = "blue"
     pred_color = "gold"
