@@ -20,14 +20,14 @@ def compute_on_dataset(model, data_loader, device, timer=None):
     results_dict = {}
     cpu_device = torch.device("cpu")
     for _, batch in enumerate(tqdm(data_loader)):
-        images, targets, image_ids = batch
+        images, targets, image_ids, original = batch
         with torch.no_grad():
             if timer:
                 timer.tic()
             if cfg.TEST.BBOX_AUG.ENABLED:
                 output = im_detect_bbox_aug(model, images, device)
             else:
-                output = model(images.to(device))
+                output = model(images.to(device), original)
             if timer:
                 if not cfg.MODEL.DEVICE == 'cpu':
                     torch.cuda.synchronize()

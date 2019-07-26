@@ -223,7 +223,7 @@ if __name__ == '__main__':
         "cvc-test": {
             'annotation_file': "../datasets/cvcvideoclinicdbtest/annotations/test.json",
             'images_folder': "../datasets/cvcvideoclinicdbtest/images/",
-            'results_folder': "../out/bs2/inference/cvc-clinic-test/",
+            'results_folder': "../out/thresh_hq/inference/cvc-clinic-test/",
             'split': "test"
         },
         "cvc-classif": {

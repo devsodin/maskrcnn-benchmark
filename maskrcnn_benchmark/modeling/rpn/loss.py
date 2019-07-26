@@ -141,7 +141,7 @@ def make_rpn_loss_evaluator(cfg, box_coder):
     matcher = Matcher(
         cfg.MODEL.RPN.FG_IOU_THRESHOLD,
         cfg.MODEL.RPN.BG_IOU_THRESHOLD,
-        allow_low_quality_matches=True,
+        allow_low_quality_matches=False,
     )
 
     fg_bg_sampler = BalancedPositiveNegativeSampler(

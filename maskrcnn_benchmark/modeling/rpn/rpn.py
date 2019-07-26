@@ -6,9 +6,11 @@ from torch import nn
 from maskrcnn_benchmark.modeling import registry
 from maskrcnn_benchmark.modeling.box_coder import BoxCoder
 from maskrcnn_benchmark.modeling.rpn.retinanet.retinanet import build_retinanet
-from .loss import make_rpn_loss_evaluator
 from .anchor_generator import make_anchor_generator
 from .inference import make_rpn_postprocessor
+from .loss import make_rpn_loss_evaluator
+
+from maskrcnn_benchmark.structures.bounding_box import BoxList
 
 
 class RPNHeadConvRegressor(nn.Module):
@@ -137,7 +139,7 @@ class RPNModule(torch.nn.Module):
         self.box_selector_test = box_selector_test
         self.loss_evaluator = loss_evaluator
 
-    def forward(self, images, features, targets=None):
+    def forward(self, images, features, original, targets=None):
         """
         Arguments:
             images (ImageList): images for which we want to compute the predictions
@@ -158,7 +160,7 @@ class RPNModule(torch.nn.Module):
         if self.training:
             return self._forward_train(anchors, objectness, rpn_box_regression, targets)
         else:
-            return self._forward_test(anchors, objectness, rpn_box_regression)
+            return self._forward_test(anchors, objectness, rpn_box_regression, original)
 
     def _forward_train(self, anchors, objectness, rpn_box_regression, targets):
         if self.cfg.MODEL.RPN_ONLY:
@@ -183,8 +185,13 @@ class RPNModule(torch.nn.Module):
         }
         return boxes, losses
 
-    def _forward_test(self, anchors, objectness, rpn_box_regression):
+    def _forward_test(self, anchors, objectness, rpn_box_regression, images_orig):
+        from matplotlib import pyplot as plt
+
         boxes = self.box_selector_test(anchors, objectness, rpn_box_regression)
+        boxes = self.remove_saturated(boxes, images_orig)
+
+
         if self.cfg.MODEL.RPN_ONLY:
             # For end-to-end models, the RPN proposals are an intermediate state
             # and don't bother to sort them in decreasing score order. For RPN-only
@@ -196,6 +203,31 @@ class RPNModule(torch.nn.Module):
             boxes = [box[ind] for box, ind in zip(boxes, inds)]
         return boxes, {}
 
+    def remove_saturated(self, boxes, images_orig):
+
+        n_boxes = []
+        for bboxlist, original in zip(boxes, images_orig):
+            stay = []
+            for bbox in bboxlist.bbox:
+                # print(bbox)
+                x = bbox[0]
+                y = bbox[1]
+                w = bbox[2]
+                h = bbox[3]
+                # print(im_tensor[:, x.int():(x + w).int(), y.int():(y + h).int()].shape)
+                # print(raw_im.shape)
+                # print(x, y, w, h)
+                from torchvision import transforms as T
+                # print(T.ToTensor()(original))
+                # print(T.ToTensor()(original).shape)
+                avg = T.ToTensor()(original)[:, x.int():(x + w).int(), y.int():(y + h).int()].mean(0).sum() / 3
+                if avg <= 200:
+                    stay.append([x, y, w, h])
+            stay_tensor = torch.as_tensor(stay, dtype=torch.float32, device="cuda")
+            n_boxes.append(BoxList(stay_tensor, bboxlist.size, mode="xywh"))
+        boxes = n_boxes
+        return boxes
+
 
 def build_rpn(cfg, in_channels):
     """
@@ -205,3 +237,4 @@ def build_rpn(cfg, in_channels):
         return build_retinanet(cfg, in_channels)
 
     return RPNModule(cfg, in_channels)
+
