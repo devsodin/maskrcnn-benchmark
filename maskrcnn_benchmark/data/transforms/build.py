@@ -12,6 +12,8 @@ def build_transforms(cfg, is_train=True):
         contrast = cfg.INPUT.CONTRAST
         saturation = cfg.INPUT.SATURATION
         hue = cfg.INPUT.HUE
+        gaussian_blur_prob = cfg.INPUT.PROB_GAUSSIAN_BLUR
+        gaussian_blur_kernel = cfg.INPUT.BLUR_KERNEL_SIZE
     else:
         min_size = cfg.INPUT.MIN_SIZE_TEST
         max_size = cfg.INPUT.MAX_SIZE_TEST
@@ -21,6 +23,8 @@ def build_transforms(cfg, is_train=True):
         contrast = 0.0
         saturation = 0.0
         hue = 0.0
+        gaussian_blur_prob = 0.0
+        gaussian_blur_kernel = []
 
     to_bgr255 = cfg.INPUT.TO_BGR255
     normalize_transform = T.Normalize(
@@ -33,10 +37,16 @@ def build_transforms(cfg, is_train=True):
         hue=hue,
     )
 
+    gaussian_blur = T.RandomGaussianBlur(
+        kernel_size=gaussian_blur_kernel,
+        prob=gaussian_blur_prob
+    )
+
     transform = T.Compose(
         [
             color_jitter,
             T.Resize(min_size, max_size),
+            gaussian_blur,
             T.RandomHorizontalFlip(flip_horizontal_prob),
             T.RandomVerticalFlip(flip_vertical_prob),
             T.ToTensor(),

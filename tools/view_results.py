@@ -101,7 +101,7 @@ def calc_challenge_metrics(loc_df, detect_df, dt, out_folder, split):
 def detect_on_image(detections, dt, image):
     detect = 0
     confidence = 0
-    anns = dt.getAnnIds(imgIds=image['id'])
+    anns = dt.getAnnIds(imgIds=image['id'], catIds=[1])
     if anns:
         detect = 1
         for ann in dt.loadAnns(anns):
@@ -116,7 +116,7 @@ def detect_on_image(detections, dt, image):
 
 
 def localize_on_image(dt, image, localization):
-    anns = dt.getAnnIds(imgIds=image['id'])
+    anns = dt.getAnnIds(imgIds=image['id'], catIds=[1])
     if anns:
         for ann in dt.loadAnns(anns):
             x, y, w, h = ann['bbox']
@@ -147,8 +147,8 @@ def evalutate(gt, dt, mode='bbox'):
 
 def save_validation_images(gt, dt_bbox, dt_segm, im_ids, save_dir):
     for im_id in im_ids:
-        gt_im_annots = gt.getAnnIds(imgIds=im_id)
-        pred_im_annots = dt_bbox.getAnnIds(imgIds=im_id)
+        gt_im_annots = gt.getAnnIds(imgIds=im_id, catIds=[1])
+        pred_im_annots = dt_bbox.getAnnIds(imgIds=im_id, catIds=[1])
 
         pred_annots = dt_bbox.loadAnns(ids=pred_im_annots)
         gt_annots = gt.loadAnns(ids=gt_im_annots)
@@ -166,7 +166,7 @@ def save_validation_images(gt, dt_bbox, dt_segm, im_ids, save_dir):
                 gt_polygon = show_bbox(gt_annot["bbox"])
                 gt_bboxes.append(gt_polygon)
 
-            annIds = gt.getAnnIds(imgIds=im_id)
+            annIds = gt.getAnnIds(imgIds=im_id, catIds=[1])
             anns = gt.loadAnns(annIds)
             showAnns(gt, anns, gt_color)
 
@@ -184,10 +184,10 @@ def save_validation_images(gt, dt_bbox, dt_segm, im_ids, save_dir):
                 ax_masks.annotate("{:.2f}".format(pred_annot['score']), xy=pred_polygon.xy[1], annotation_clip=False,
                                   color='white')
                 pred_bboxes.append(pred_polygon)
-
-            annIds = dt_segm.getAnnIds(imgIds=im_id)
-            anns = dt_segm.loadAnns(annIds)
-            showAnns(dt_segm, anns, pred_color)
+            if dt_segm is not None:
+                annIds = dt_segm.getAnnIds(imgIds=im_id, catIds=[1])
+                anns = dt_segm.loadAnns(annIds)
+                showAnns(dt_segm, anns, pred_color)
 
             p = PatchCollection(pred_bboxes, alpha=0.3)
             p.set_facecolor('none')
@@ -213,29 +213,37 @@ if __name__ == '__main__':
     ap.add_argument("--no_metrics", action='store_false', default=True)
     ap.add_argument("--dataset", type=str)
 
+    experiment = "results/colon_classif_cosine+blur"
+
     data_dict = {
         "cvc-val": {
             'annotation_file': "../datasets/CVC-VideoClinicDBtrain_valid/annotations/val.json",
             'images_folder': "../datasets/CVC-VideoClinicDBtrain_valid/images/",
-            'results_folder': "../out/params_085_025_bs/inference/cvc-clinic-val/",
+            'results_folder': "../{}/inference/cvc-clinic-val/",
             'split': "val"
         },
         "cvc-test": {
             'annotation_file': "../datasets/cvcvideoclinicdbtest/annotations/test.json",
             'images_folder': "../datasets/cvcvideoclinicdbtest/images/",
-            'results_folder': "../out/thresh_hq/inference/cvc-clinic-test/",
+            'results_folder': "../{}/inference/cvc-clinic-test/",
             'split': "test"
         },
-        "cvc-classif": {
+        "etis": {
             'annotation_file': "../datasets/ETIS-LaribPolypDB/annotations/train.json",
             'images_folder': "../datasets/ETIS-LaribPolypDB/images/",
-            'results_folder': "../out/params_08_025/inference/etis-larib/",
+            'results_folder': "../{}/inference/etis-larib/",
             'split': "val"
         },
-        "etis": {
+        "cvc-classif": {
             'annotation_file': "../datasets/CVC-classification/annotations/train.json",
             'images_folder': "../datasets/CVC-classification/images/",
-            'results_folder': "../out/params_08_025/inference/cvc-classification/",
+            'results_folder': "../results/clinic612-dcn/inference/cvc-classification/",
+            'split': "val"
+        },
+        "cvc-colondb-val": {
+            'annotation_file': "../datasets/cvc-colondb-300/annotations/train.json",
+            'images_folder': "../datasets/cvc-colondb-300/images/",
+            'results_folder': "../{}/inference/cvc-colondb-val/",
             'split': "val"
         }
     }
@@ -255,20 +263,22 @@ if __name__ == '__main__':
     gt = coco.COCO(results_data['annotation_file'])
 
     # predictions
-    dt_bbox = gt.loadRes(os.path.join(results_data['results_folder'], "bbox.json"))
-    det_segm = gt.loadRes(os.path.join(results_data['results_folder'], "segm.json"))
+    eval_segm = os.path.exists(os.path.join(results_data['results_folder'].format(experiment), "segm.json"))
+    dt_bbox = gt.loadRes(os.path.join(results_data['results_folder'].format(experiment), "bbox.json"))
+    det_segm = gt.loadRes(os.path.join(results_data['results_folder'].format(experiment), "segm.json")) if eval_segm else None
 
     evalutate(gt, dt_bbox, 'bbox')
-    evalutate(gt, det_segm, 'segm')
+    if eval_segm:
+        evalutate(gt, det_segm, 'segm')
 
     detection_df = pd.DataFrame(columns=['image', "has_polyp", "confidence"])
     localization_df = pd.DataFrame(columns=['image', "center_x", "center_y", "confidence"])
     if calc_metrics:
-        calc_challenge_metrics(localization_df, detection_df, dt_bbox, results_data['results_folder'], results_data['split'])
+        calc_challenge_metrics(localization_df, detection_df, dt_bbox, results_data['results_folder'].format(experiment), results_data['split'])
 
     if save_ims:
         im_ids = gt.getImgIds()
-        save_dir = os.path.join(results_data['results_folder'], "ims")
+        save_dir = os.path.join(results_data['results_folder'].format(experiment), "ims")
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
         save_validation_images(gt, dt_bbox, det_segm, im_ids, save_dir)

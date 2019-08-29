@@ -1,8 +1,8 @@
 MODEL:
   META_ARCHITECTURE: "GeneralizedRCNN"
-  WEIGHT: "catalog://ImageNetPretrained/MSRA/R-101"
+  WEIGHT: "catalog://ImageNetPretrained/MSRA/R-50"
   BACKBONE:
-    CONV_BODY: "R-101-FPN"
+    CONV_BODY: "R-50-FPN"
   RESNETS:
     BACKBONE_OUT_CHANNELS: 256
   RPN:
@@ -20,7 +20,7 @@ MODEL:
     POOLER_SAMPLING_RATIO: 2
     FEATURE_EXTRACTOR: "FPN2MLPFeatureExtractor"
     PREDICTOR: "FPNPredictor"
-    NUM_CLASSES: 2
+    NUM_CLASSES: 3
   ROI_MASK_HEAD:
     POOLER_SCALES: (0.25, 0.125, 0.0625, 0.03125)
     FEATURE_EXTRACTOR: "MaskRCNNFPNFeatureExtractor"
@@ -31,14 +31,17 @@ MODEL:
     SHARE_BOX_FEATURE_EXTRACTOR: False
   MASK_ON: True
 DATASETS:
-  TRAIN: ("cvc-clinic-train","etis-larib",)
-  TEST: ("cvc-clinic-val",)
+  TRAIN: ("cvc-colondb-train",)
+  TEST: ("cvc-clinic-val-op",  "etis-larib-op", "cvc-colondb-val-op", "cvc-clinic-test",)
 DATALOADER:
   SIZE_DIVISIBILITY: 32
 SOLVER:
+  # 1 GPU
   BASE_LR: 0.0025
   WEIGHT_DECAY: 0.0001
-  STEPS: [0, 30000, 40000]
-  MAX_ITER: 1000
-  IMS_PER_BATCH: 8
-OUTPUT_DIR: "test101"
+  STEPS: [0, 6080, 9838]
+  MAX_ITER: 1112 #500+612
+  IMS_PER_BATCH: 2
+  SCHEDULER: "cosine"
+  ETA_MIN: 0
+OUTPUT_DIR: "results/only_polyp/baseline_dcn_cosine"

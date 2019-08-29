@@ -13,12 +13,14 @@ MODEL:
     POST_NMS_TOP_N_TEST: 2000
     FPN_POST_NMS_TOP_N_TEST: 2000
 DATASETS:
-  TRAIN: ("coco_2014_train", "coco_2014_valminusminival")
-  TEST: ("coco_2014_minival",)
+  TRAIN: ("cvc-clinic-train", "cvc-classification", "cvc-colondb-train",)
+  TEST: ("cvc-clinic-val", "cvc-clinic-test", "etis-larib", "cvc-colondb-val", )
 DATALOADER:
   SIZE_DIVISIBILITY: 32
 SOLVER:
-  BASE_LR: 0.02
+  BASE_LR: 0.0025
   WEIGHT_DECAY: 0.0001
-  STEPS: (60000, 80000)
-  MAX_ITER: 90000
+  STEPS: [0, 6080, 9838]
+  MAX_ITER: 12160
+  IMS_PER_BATCH: 2
+OUTPUT_DIR: "rpn_test"

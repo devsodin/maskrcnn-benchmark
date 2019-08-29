@@ -1,6 +1,5 @@
 MODEL:
   META_ARCHITECTURE: "GeneralizedRCNN"
-  #WEIGHT: "pretrained_models/mask_rcnn_R-50-FPN_1x_detectron_no_last_layers.pth"
   WEIGHT: "catalog://ImageNetPretrained/MSRA/R-50"
   BACKBONE:
     CONV_BODY: "R-50-FPN"
@@ -18,11 +17,11 @@ MODEL:
     FPN_POST_NMS_TOP_N_TEST: 1000
     FG_IOU_THRESHOLD: 0.7
     BG_IOU_THRESHOLD: 0.3
-    NMS_THRESH: 0.85
+    NMS_THRESH: 0.7 # 0.7
     #MIN_SIZE: 0
   ROI_HEADS:
     USE_FPN: True
-    DETECTIONS_PER_IMG: 3
+    DETECTIONS_PER_IMG: 2
     SCORE_THRESH: 0.1
   ROI_BOX_HEAD:
     POOLER_RESOLUTION: 7
@@ -41,7 +40,7 @@ MODEL:
     SHARE_BOX_FEATURE_EXTRACTOR: False
   MASK_ON: True
 DATASETS:
-  TRAIN: ("cvc-clinic-train","cvc-classification", "cvc-colondb-train",)
+  TRAIN: ("cvc-colondb-train", "cvc-classification")
   TEST: ("cvc-clinic-val", "cvc-clinic-test", "cvc-colondb-val","etis-larib", )
 DATALOADER:
   SIZE_DIVISIBILITY: 32
@@ -49,14 +48,21 @@ SOLVER:
 # 1 GPU
   BASE_LR: 0.0025
   WEIGHT_DECAY: 0.0001
-  STEPS: [0, 6086, 9737]
-  MAX_ITER: 12171
+  STEPS: [0, 2648, 4236]
+  MAX_ITER: 5295 # 6 epochs
   IMS_PER_BATCH: 2
-  #SCHEDULER: "cosine"
-OUTPUT_DIR: "results/exp_dcn__nmsthresh85"
+  SCHEDULER: "cosine"
+OUTPUT_DIR: "results/colon_classif_cosine+blur_sizesok"
 INPUT:
   HUE: 0.1
   BRIGHTNESS: 0.05
   SATURATION: 0.05
   VERTICAL_FLIP_PROB_TRAIN: 0.4
-  MIN_SIZE_TRAIN: (384,)
+  PROB_GAUSSIAN_BLUR: 0.5
+  BLUR_KERNEL_SIZE: [2]
+
+  # PROXIMO EXPERIMENTO A LAZNAR
+  MIN_SIZE_TRAIN: (288,) # 384 x 288
+  MAX_SIZE_TRAIN: 800
+  MIN_SIZE_TEST: 288
+  MAX_SIZE_TEST: 800 # un poco menos de la mitad de las classif

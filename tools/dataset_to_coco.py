@@ -1,6 +1,7 @@
 import datetime
 import json
 import os
+from glob import glob
 
 import cv2
 import numpy as np
@@ -8,14 +9,18 @@ import pandas as pd
 from PIL import Image
 from matplotlib import pyplot as plt
 from pycocotools import mask
+from scipy.misc import imsave
 from scipy.ndimage import label
 
 ROOT_DIR_CVC_TRAIN_VAL = "../datasets/CVC-VideoClinicDBtrain_valid"
 ROOT_DIR_CVC_TEST = "../datasets/cvcvideoclinicdbtest"
 ROOT_DIR_CVC_CLASSIFICATION = "../datasets/CVC-classification"
 ROOT_DIR_ETIS = "../datasets/ETIS-LaribPolypDB"
+ROOT_DIR_CVC_612 = "../datasets/cvc-colondb-612"
+ROOT_DIR_CVC_300 = "../datasets/cvc-colondb-300"
 
 MASK_EXTENSION = "_Polyp"
+SPECULAR_EXTENSION = "_Specular"
 
 INFO_CVC = {
     "description": "CVC-clinic",
@@ -70,17 +75,19 @@ CATEGORIES_MULTI = [
 CATEGORIES = [
     {
         'id': 1,
-        'name': 'polyp',
+        'name': 'Polyp',
         'supercategory': 'polyp',
-    }
+    },
+
+    {
+        'id': 2,
+        'name': 'Specular',
+        'supercategory': 'other',
+    },
 ]
 
 
 def generate_bbox(mask):
-    """
-
-    :rtype: list
-    """
     coors = np.where(np.array(mask) == 1)
 
     if len(coors[0]) == 0:
@@ -103,19 +110,19 @@ def get_mask_images(mask_dir, mask_file):
     if not os.path.exists(mask_dir):
         return []
     else:
-        mask_file = mask_file.split(".")[0] + "_Polyp.tif" #+ mask_file.split(".")[1]
-        path_file = os.path.join(mask_dir, mask_file)
+        base, extension = mask_file.split(".")
 
-        print(mask_file)
-        r_im = Image.open(path_file).convert('L')
-        r_im = np.array(r_im)
-        print(r_im.shape)
+        masks = glob(os.path.join(mask_dir, "{}*".format(base)))
 
-        kernel = np.ones((3, 3))
-        im, count = label(r_im, structure=kernel)
-        if count > 1:
-            print("multiple masks", count, os.path.join(mask_dir, mask_file))
-            #split_images_masks(os.path.join(mask_dir, mask_file))
+        for file in masks:
+            r_im = Image.open(file).convert('L')
+            r_im = np.array(r_im)
+            kernel = np.ones((3, 3))
+            # kernel = np.array([[1,1,1],[1,1,1],[1,1,1]])
+
+            im, count = label(r_im, structure=kernel)
+            print("masks:", count, os.path.join(mask_dir, file))
+            # split_images_masks(file)
         return filter(is_annot_from_image, os.listdir(mask_dir))
 
 
@@ -130,7 +137,6 @@ def get_image_coco_info(image_id, filename, size, license="", cocourl="", flicku
         "file_name": filename,
         "date_captured": datacaptured
     }
-    print(info)
     return info
 
 
@@ -186,18 +192,18 @@ def dataset_to_coco(root_folder: str, info, licenses, categories, seqs: list or 
     image_id = 1
     segmentation_id = 1
 
-    if has_annotations:
-        csv_file = os.path.join(root_folder, "data.csv")
-        csv = pd.read_csv(csv_file)
-        folder_ims = csv.image.tolist()
-    else:
+    if not has_annotations:
         coco_output.pop("annotations")
-        folder_ims = os.listdir(images_folder)
+
+    folder_ims = os.listdir(images_folder)
 
     for file in folder_ims:
+
         if seqs is not None:
-            if file[0:3] not in seqs:
+            seq_name = file[0:3]
+            if seq_name not in seqs:
                 continue
+
         im_file = os.path.join(images_folder, file)
         im = Image.open(im_file)
 
@@ -209,13 +215,8 @@ def dataset_to_coco(root_folder: str, info, licenses, categories, seqs: list or 
 
         for mask in masks:
             mask_file = os.path.join(masks_folder, mask)
-            if len(categories) > 1:
-                print(csv.loc[csv["image"] == file, "classification"].index[0])
-                index = csv.loc[csv["image"] == file, "classification"].index[0]
-                print([x['id'] for x in categories if x['name'] in csv.iloc[index].classification])
-                class_id = [x['id'] for x in categories if x['name'] in csv.iloc[index].classification][0]
-            else:
-                class_id = categories[0]['id']
+            print(mask_file)
+            class_id = [category['id'] for category in categories if category['name'] in mask.split("_")][0]
 
             # TODO should change is_crowd (need to update data.csv adding is_crowd data)
             category_info = {'id': class_id, 'is_crowd': 'crowd' in mask_file}
@@ -239,9 +240,8 @@ def rename_images(root_dir):
 
     images_dir = os.path.join(root_dir, "images")
     MASKS_DIR = os.path.join(root_dir, "masks")
-    for im in os.listdir(MASKS_DIR):
-        extension = im.split(".")[1]
 
+    for im in os.listdir(MASKS_DIR):
         # CVC train-val
         # seq = int(im.split("-")[0])
         # im_number = int(im.split(".")[0].split("-")[1])
@@ -250,45 +250,75 @@ def rename_images(root_dir):
         # CVC test
         # NO HAY MASCARAS
 
+        # COLONDB
+        im_number, extension = im.split(".")
+        im_number = int(im_number)
+        new_name = "{:03d}{}.{}".format(im_number, MASK_EXTENSION, extension)
+
         # ETIS-Larib
         # im_number = int(im.split(".")[0][1:])
         # new_name = "{:03d}{}.{}".format(im_number, MASK_EXTENSION, extension)
         #
-        # os.rename(os.path.join(MASKS_DIR, im), os.path.join(MASKS_DIR, new_name))
 
-    for im in os.listdir(images_dir):
-        extension = im.split(".")[1]
+        os.rename(os.path.join(MASKS_DIR, im), os.path.join(MASKS_DIR, new_name))
 
-        # CVC train-val
-        # CVC test
-        # seq = int(im.split("-")[0])
-        # im_number = int(im.split(".")[0].split("-")[1])
-        # new_name = "{:03d}-{:04d}.{}".format(seq, im_number, extension)
+    # for im in os.listdir(images_dir):
+    #     extension = im.split(".")[1]
+    #
+    #     # CVC train-val
+    #     # CVC test
+    #     # seq = int(im.split("-")[0])
+    #     # im_number = int(im.split(".")[0].split("-")[1])
+    #     # new_name = "{:03d}-{:04d}.{}".format(seq, im_number, extension)
+    #
+    #     # ETIS-Larib
+    #     # im_number = int(im.split(".")[0])
+    #     # new_name = "{:03d}.{}".format(im_number, extension)
+    #
+    #     # COLONDB
+    #     im_number, extension = im.split(".")
+    #     im_number = int(im_number)
+    #     new_name = "{:03d}.{}".format(im_number, extension)
+    #
+    #     os.rename(os.path.join(images_dir, im), os.path.join(images_dir, new_name))
+    #
+    if "colondb" in root_dir:
+        REFLEX_DIR = os.path.join(root_dir, "specular")
 
-        # ETIS-Larib
-        im_number = int(im.split(".")[0])
-        new_name = "{:03d}.{}".format(im_number, extension)
+        for im in os.listdir(REFLEX_DIR):
+            im_number, extension = im.split(".")
 
-        os.rename(os.path.join(images_dir, im), os.path.join(images_dir, new_name))
+            im_number = int(im_number)
+            new_name = "{:03d}{}.{}".format(im_number, SPECULAR_EXTENSION, extension)
+
+            os.rename(os.path.join(REFLEX_DIR, im), os.path.join(REFLEX_DIR, new_name))
 
 
 def split_images_masks(image):
     name, ext = os.path.basename(image).split(".")
+    ext = "tif"
     path = os.path.dirname(image)
 
-    r_im = plt.imread(image)
-    kernel = np.ones((3, 3))
-    im, count = label(r_im, structure=kernel)
+    r_im = Image.open(image).convert('L')
+    r_im = np.array(r_im)
+    kernel = np.ones((3,3))
+    # kernel = np.array([[1, 1, 1], [1, 1, 1], [1, 1, 1]])
+    if r_im.sum() != 0:
+        im, count = label(r_im, structure=kernel)
+        if count <= 1:
+            imsave(os.path.join(path, "{}_{}.{}".format(name, 1, ext)), r_im)
+        else:
+            for cont in range(count):
+                print(np.where(im == cont + 1, r_im, 0).sum() / 255)
+                if np.where(im == cont + 1, r_im, 0).sum() / 255 >= 125.0:
+                    imsave(os.path.join(path, "{}_{}.{}".format(name, cont + 1, ext)), np.where(im == cont + 1, r_im, 0))
 
-    for cont in range(count):
-        from scipy.misc import imsave
-        plt.imshow(np.where(im == cont + 1, r_im, 0))
-        imsave(os.path.join(path, "{}_{}.{}".format(name, cont + 1, ext)), np.where(im == cont + 1, r_im, 0))
     os.remove(image)
 
 
 def _gen_csv_for_dataset():
     datasets_folders = [ROOT_DIR_CVC_CLASSIFICATION]
+    file_extension = "png"
     mask_extension = "_Polyp"
     for dataset in datasets_folders:
         ims_folder = os.path.join(dataset, "images")
@@ -301,8 +331,7 @@ def _gen_csv_for_dataset():
             im_file = os.path.basename(im)
 
             mask, ext = im_file.split(".")
-            mask_file = mask + mask_extension + ".tif"
-            print(im_file, mask_file)
+            mask_file = mask + mask_extension + ".{}".format(file_extension)
 
             mask_im = cv2.imread(os.path.join(mask_folder, mask_file))
             if mask_im.sum() > 0:
@@ -319,28 +348,31 @@ def _gen_csv_for_dataset():
             df.sort_index()
             df.reset_index(inplace=True, drop=True)
 
-        print(df)
         df.sort_values(by='image')
         df.to_csv(os.path.join(dataset, "data.csv"), index=False)
 
 
 if __name__ == '__main__':
-    rename_images(ROOT_DIR_ETIS)
-
     train_seq = ["{:03d}".format(x) for x in range(1, 16)]
     val_seq = ["{:03d}".format(x) for x in range(16, 19)]
 
     # dataset_to_coco(ROOT_DIR_CVC_TRAIN_VAL, INFO_CVC, LICENSES, CATEGORIES, train_seq, "train.json",
     #                 has_annotations=True)
-
+    #
     # dataset_to_coco(ROOT_DIR_CVC_TRAIN_VAL, INFO_CVC, LICENSES, CATEGORIES, val_seq, "val.json",
     #                 has_annotations=True)
 
     # dataset_to_coco(ROOT_DIR_CVC_TEST, INFO_CVC, LICENSES, CATEGORIES, None, "test.json",
     #                 has_annotations=False)
     #
-    dataset_to_coco(ROOT_DIR_CVC_CLASSIFICATION, INFO_CVC, LICENSES, CATEGORIES, None, "train.json",
-                    has_annotations=True)
+    # dataset_to_coco(ROOT_DIR_CVC_CLASSIFICATION, INFO_CVC, LICENSES, CATEGORIES, None, "train.json",
+    #                 has_annotations=True)
     #
     # dataset_to_coco(ROOT_DIR_ETIS, INFO_ETIS, LICENSES, CATEGORIES, None, "train.json",
+    #                 has_annotations=True)
+    #
+    dataset_to_coco(ROOT_DIR_CVC_300, INFO_CVC, LICENSES, CATEGORIES, None, "train.json",
+                    has_annotations=True)
+    #
+    # dataset_to_coco(ROOT_DIR_CVC_612, INFO_CVC, LICENSES, CATEGORIES, None, "train.json",
     #                 has_annotations=True)

@@ -6,11 +6,10 @@ from torch import nn
 from maskrcnn_benchmark.modeling import registry
 from maskrcnn_benchmark.modeling.box_coder import BoxCoder
 from maskrcnn_benchmark.modeling.rpn.retinanet.retinanet import build_retinanet
+from maskrcnn_benchmark.structures.bounding_box import BoxList
 from .anchor_generator import make_anchor_generator
 from .inference import make_rpn_postprocessor
 from .loss import make_rpn_loss_evaluator
-
-from maskrcnn_benchmark.structures.bounding_box import BoxList
 
 
 class RPNHeadConvRegressor(nn.Module):
@@ -186,11 +185,9 @@ class RPNModule(torch.nn.Module):
         return boxes, losses
 
     def _forward_test(self, anchors, objectness, rpn_box_regression, images_orig):
-        from matplotlib import pyplot as plt
 
         boxes = self.box_selector_test(anchors, objectness, rpn_box_regression)
-        boxes = self.remove_saturated(boxes, images_orig)
-
+        # boxes = self.remove_saturated(boxes, images_orig)
 
         if self.cfg.MODEL.RPN_ONLY:
             # For end-to-end models, the RPN proposals are an intermediate state
@@ -205,26 +202,45 @@ class RPNModule(torch.nn.Module):
 
     def remove_saturated(self, boxes, images_orig):
 
+        import numpy as np
+
         n_boxes = []
         for bboxlist, original in zip(boxes, images_orig):
+            bboxlist.clip_to_image()
             stay = []
             for bbox in bboxlist.bbox:
                 # print(bbox)
                 x = bbox[0]
                 y = bbox[1]
-                w = bbox[2]
-                h = bbox[3]
-                # print(im_tensor[:, x.int():(x + w).int(), y.int():(y + h).int()].shape)
-                # print(raw_im.shape)
-                # print(x, y, w, h)
-                from torchvision import transforms as T
+                x_ = bbox[2]
+                y_ = bbox[3]
+
+                # print(x, y, x_, y_)
+
                 # print(T.ToTensor()(original))
                 # print(T.ToTensor()(original).shape)
-                avg = T.ToTensor()(original)[:, x.int():(x + w).int(), y.int():(y + h).int()].mean(0).sum() / 3
-                if avg <= 200:
-                    stay.append([x, y, w, h])
+                region = np.array(original)[x.int():x_.int(), y.int():y_.int()]
+                if region.shape[0] <= 0 or region.shape[1] <= 1:
+                    continue
+                # print(region.shape)
+                # print(region.dtype)
+                avg = region.mean()
+                std = region.std()
+
+                # print(avg, std)
+                # plt.imshow(T.ToPILImage()(region))
+                # plt.show()
+
+                # TODO learn threshold
+                if avg <= 220:
+                    stay.append([x, y, x_, y_])
+                # else:
+                #     plt.imshow(original)
+                #     plt.show()
+                #     plt.imshow(region)
+                #     plt.show()
             stay_tensor = torch.as_tensor(stay, dtype=torch.float32, device="cuda")
-            n_boxes.append(BoxList(stay_tensor, bboxlist.size, mode="xywh"))
+            n_boxes.append(BoxList(stay_tensor, bboxlist.size, mode="xyxy"))
         boxes = n_boxes
         return boxes
 
@@ -237,4 +253,3 @@ def build_rpn(cfg, in_channels):
         return build_retinanet(cfg, in_channels)
 
     return RPNModule(cfg, in_channels)
-

@@ -19,19 +19,19 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Trim Detection weights and save in PyTorch format.")
     parser.add_argument(
         "--pretrained_path",
-        default="~/.torch/models/_detectron_35858933_12_2017_baselines_e2e_mask_rcnn_R-50-FPN_1x.yaml.01_48_14.DzEQe4wC_output_train_coco_2014_train%3Acoco_2014_valminusminival_generalized_rcnn_model_final.pkl",
+        default="~/.torch/models/_detectron_35861795_12_2017_baselines_e2e_mask_rcnn_R-101-FPN_1x.yaml.02_31_37.KqyEK4tT_output_train_coco_2014_train%3Acoco_2014_valminusminival_generalized_rcnn_model_final.pkl",
         help="path to detectron pretrained weight(.pkl)",
         type=str,
     )
     parser.add_argument(
         "--save_path",
-        default="../pretrained_models/mask_rcnn_R-50-FPN_1x_detectron_no_last_layers.pth",
+        default="../pretrained_models/mask_rcnn_R-101-FPN_1x_detectron_no_last_layers.pth",
         help="path to save the converted model",
         type=str,
     )
     parser.add_argument(
         "--cfg",
-        default="../configs/caffe2/e2e_mask_rcnn_R_50_FPN_1x.yaml",
+        default="../configs/caffe2/e2e_mask_rcnn_R_101_FPN_1x_caffe2.yaml",
         help="path to config file",
         type=str,
     )

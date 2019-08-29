@@ -5,6 +5,9 @@ import torch
 import torchvision
 from torchvision.transforms import functional as F
 
+from maskrcnn_benchmark.structures.bounding_box import BoxList
+from PIL import ImageFilter
+
 
 class Compose(object):
     def __init__(self, transforms):
@@ -74,24 +77,70 @@ class RandomHorizontalFlip(object):
         return image, target
 
 
+class RandomGaussianBlur(object):
+    def __init__(self, kernel_size=[], prob=0.5):
+        self.prob = prob
+        self.kernel_size = kernel_size
+
+    def __call__(self, image, target):
+
+        if random.random() < self.prob:
+            kernel_size = random.choice(self.kernel_size)
+            image = image.filter(ImageFilter.GaussianBlur(kernel_size))
+
+        return image, target
+
+
 class RandomRotation(object):
     def __init__(self, degrees, resample=False, expand=False):
-        if degrees > 180:
-            raise ValueError("deggres must be a value between 0 ans 180")
+        if degrees > 90:
+            raise ValueError("deggres must be a value between 0 ans 90")
 
         self.degrees = degrees
         self.resample = resample
         self.expand = expand
-
         self.angle = random.uniform(-self.degrees, self.degrees)
+
+    def bbox_rotate(self, target, angle, im_size, resample, expand):
+        print(target)
+        n_target = []
+        img_width, img_height = im_size
+        for bbox in target.bbox:
+            bbox = bbox.cpu().numpy()
+            plt.plot([bbox[0], bbox[0], bbox[2], bbox[2]],
+                     [bbox[1], bbox[3], bbox[1], bbox[3]])
+
+            scale = img_width / float(img_height)
+            x = torch.tensor([bbox[0], bbox[2], bbox[0], bbox[2]])
+            y = torch.tensor([bbox[1], bbox[1], bbox[3], bbox[3]])
+
+            from numpy import deg2rad
+            angle = torch.tensor(deg2rad(angle))
+
+            x_t = (torch.cos(angle) * x * scale + torch.sin(angle) * y) / scale
+            y_t = (torch.sin(angle) * x * scale + torch.cos(angle) * y)
+
+
+            n_target.append([x_t.min(), y_t.min(), x_t.max(), y_t.max()])
+
+            plt.plot([n_target[0][0], n_target[0][0], n_target[0][2], n_target[0][2]],
+                     [n_target[0][1], n_target[0][3], n_target[0][1], n_target[0][3]])
+
+            plt.show()
+
+            print(n_target)
+
+        return BoxList(n_target, im_size)
 
     def __call__(self, img, target):
         img = F.rotate(img, self.angle, self.resample, self.expand)
 
-        print(target)
+        plt.imshow(img)
+        rotated_bbox = self.bbox_rotate(target, self.angle, img.size, self.resample, self.expand)
 
+        print(rotated_bbox)
+        return img, rotated_bbox
 
-        return img, target
 
 class RandomVerticalFlip(object):
     def __init__(self, prob=0.5):
@@ -122,16 +171,6 @@ class ColorJitter(object):
         return image, target
 
 
-# TODO
-# class Pad(object):
-#     def __init__(self,padding, fill=0, padding_mode='constant'):
-#         self.padding = padding
-#         self.fill = fill
-#         self.padding_mode = padding_mode
-
-
-
-
 class ToTensor(object):
     def __call__(self, image, target):
         return F.to_tensor(image), target
@@ -150,3 +189,25 @@ class Normalize(object):
         if target is None:
             return image
         return image, target
+
+
+if __name__ == '__main__':
+    from matplotlib import pyplot as plt
+    from maskrcnn_benchmark.data.datasets import CVCClinicDataset
+
+
+    def scatter_points(bbox):
+        bbox = bbox.cpu().numpy()
+        plt.plot([bbox[0], bbox[0], bbox[2], bbox[2]],
+                 [bbox[1], bbox[3], bbox[1], bbox[3]])
+
+
+    ds = CVCClinicDataset("datasets/cvc-colondb-612/annotations/train.json", "datasets/cvc-colondb-612/images/",
+                          "colon612", Compose([RandomGaussianBlur(list(range(1,5)), 1)]))
+
+    print(ds[0])
+    for box in ds[0][1].bbox:
+        scatter_points(box)
+    print(ds[0][1].bbox)
+    plt.imshow(ds[0][0])
+    plt.show()

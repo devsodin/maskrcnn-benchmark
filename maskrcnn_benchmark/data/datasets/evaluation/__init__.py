@@ -1,10 +1,7 @@
 from maskrcnn_benchmark.data import datasets
-import os
 from .coco import coco_evaluation
 from .voc import voc_evaluation
 from .giana_challenge import giana_eval
-
-import logging
 
 def evaluate(dataset, predictions, output_folder, **kwargs):
     """evaluate dataset using different methods based on dataset type.
@@ -32,10 +29,6 @@ def evaluate(dataset, predictions, output_folder, **kwargs):
         else:
             giana_eval(**args)
             return coco_eval
-    elif isinstance(dataset, datasets.ETISLaribDataset):
-        return coco_evaluation(**args)
-
-
     else:
         dataset_name = dataset.__class__.__name__
         raise NotImplementedError("Unsupported dataset type {}.".format(dataset_name))

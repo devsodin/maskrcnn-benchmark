@@ -164,6 +164,8 @@ class COCODemo(object):
         """
         Creates a basic transformation that was used to train the models
         """
+
+
         cfg = self.cfg
 
         # we are loading images with OpenCV, so we don't need to convert them

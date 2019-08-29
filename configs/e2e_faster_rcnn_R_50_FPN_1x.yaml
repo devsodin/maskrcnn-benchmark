@@ -23,7 +23,7 @@ MODEL:
     PREDICTOR: "FPNPredictor"
     NUM_CLASSES: 2
 DATASETS:
-  TRAIN: ("cvc-clinic-train",)
+  TRAIN: ("<cvc-clinic-train",)
   TEST: ("cvc-clinic-val","cvc-clinic-test","cvc-classification")
 DATALOADER:
   SIZE_DIVISIBILITY: 32

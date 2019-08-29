@@ -38,7 +38,7 @@ def calc_challenge_metrics(loc_df, detect_df, dt, out_folder, split):
 def detect_on_image(detections, dt, image):
     detect = 0
     confidence = 0
-    anns = dt.getAnnIds(imgIds=image['id'])
+    anns = dt.getAnnIds(imgIds=image['id'], catIds=[1])
     if anns:
         detect = 1
         for ann in dt.loadAnns(anns):
@@ -53,7 +53,7 @@ def detect_on_image(detections, dt, image):
 
 
 def localize_on_image(dt, image, localization):
-    anns = dt.getAnnIds(imgIds=image['id'])
+    anns = dt.getAnnIds(imgIds=image['id'], catIds=[1])
     if anns:
         for ann in dt.loadAnns(anns):
             x, y, w, h = ann['bbox']

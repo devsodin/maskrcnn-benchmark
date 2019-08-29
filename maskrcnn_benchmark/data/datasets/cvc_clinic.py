@@ -1,11 +1,12 @@
+import os
+
 import torch
+from PIL import Image
 from torchvision.datasets.coco import CocoDetection
 
 from maskrcnn_benchmark.structures.bounding_box import BoxList
 from maskrcnn_benchmark.structures.segmentation_mask import SegmentationMask
-from PIL import Image
-import os
-from torchvision import transforms as T
+
 
 class CVCClinicDataset(CocoDetection):
     def __init__(self, annotation_file, root, name, transforms=None):
@@ -38,7 +39,7 @@ class CVCClinicDataset(CocoDetection):
 
         image = Image.open(os.path.join(self.root, path)).convert('RGB')
 
-        orig_image = image
+        orig_image = image.convert("L")
 
         # filter crowd annotations
         # TODO might be better to add an extra field
@@ -72,9 +73,6 @@ class CVCClinicDataset(CocoDetection):
 
 
 if __name__ == '__main__':
-
-
-
     test = CVCClinicDataset("../../../datasets/CVC-classification/annotations/train.json",
                             "../../../datasets/CVC-classification/images", False, None)
     print(test[0])
@@ -82,4 +80,9 @@ if __name__ == '__main__':
     batch = test[0]
 
     print(batch)
-    print(len(batch))
+    import numpy as np
+    from matplotlib import pyplot as plt
+
+    plt.imshow(batch[3])
+    print(np.array(batch[3]).std())
+    plt.show()

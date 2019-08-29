@@ -104,6 +104,9 @@ class DatasetCatalog(object):
             "img_dir": "cityscapes/images",
             "ann_file": "cityscapes/annotations/instancesonly_filtered_gtFine_test.json"
         },
+
+        # ----------------------------------------------------------------
+
         "cvc-clinic-train": {
             "data_dir": "CVC-VideoClinicDBtrain_valid/images",
             "ann_file": "CVC-VideoClinicDBtrain_valid/annotations/train.json",
@@ -119,17 +122,66 @@ class DatasetCatalog(object):
             "ann_file": "cvcvideoclinicdbtest/annotations/test.json",
             "name": "cvc-clinic-test"
         },
+
         "cvc-classification": {
             "data_dir": "CVC-classification/images",
             "ann_file": "CVC-classification/annotations/train.json",
             "name": "cvc-classification"
         },
+
         "etis-larib": {
             "data_dir": "ETIS-LaribPolypDB/images",
             "ann_file": "ETIS-LaribPolypDB/annotations/train.json",
             "name": "etis-larib"
-        }
+        },
 
+        "cvc-colondb-train": {
+            "data_dir": "cvc-colondb-612/images",
+            "ann_file": "cvc-colondb-612/annotations/train.json",
+            "name": "cvc-colondb-train"
+        },
+        "cvc-colondb-val": {
+            "data_dir": "cvc-colondb-300/images",
+            "ann_file": "cvc-colondb-300/annotations/val.json",
+            "name": "cvc-colondb-val"
+        },
+
+
+        "cvc-clinic-train-op": {
+            "data_dir": "CVC-VideoClinicDBtrain_valid/images",
+            "ann_file": "CVC-VideoClinicDBtrain_valid/annotations/train_only_polyp.json",
+            "name": "cvc-clinic-train"
+        },
+        "cvc-clinic-val-op": {
+            "data_dir": "CVC-VideoClinicDBtrain_valid/images",
+            "ann_file": "CVC-VideoClinicDBtrain_valid/annotations/val_only_polyp.json",
+            "name": "cvc-clinic-val"
+        },
+        "cvc-clinic-test-op": {
+            "data_dir": "cvcvideoclinicdbtest/images",
+            "ann_file": "cvcvideoclinicdbtest/annotations/test_only_polyp.json",
+            "name": "cvc-clinic-test"
+        },
+        "cvc-classification-op": {
+            "data_dir": "CVC-classification/images",
+            "ann_file": "CVC-classification/annotations/train_only_polyp.json",
+            "name": "cvc-classification"
+        },
+        "etis-larib-op": {
+            "data_dir": "ETIS-LaribPolypDB/images",
+            "ann_file": "ETIS-LaribPolypDB/annotations/train_only_polyp.json",
+            "name": "etis-larib"
+        },
+        "cvc-colondb-train-op": {
+            "data_dir": "cvc-colondb-612/images",
+            "ann_file": "cvc-colondb-612/annotations/train_only_polyp.json",
+            "name": "cvc-colondb-train"
+        },
+        "cvc-colondb-val-op": {
+            "data_dir": "cvc-colondb-300/images",
+            "ann_file": "cvc-colondb-300/annotations/val_only_polyp.json",
+            "name": "cvc-colondb-val"
+        }
     }
 
     @staticmethod
@@ -156,7 +208,7 @@ class DatasetCatalog(object):
                 factory="PascalVOCDataset",
                 args=args,
             )
-        elif "cvc-" in name:
+        elif "cvc-" in name or "etis" in name:
             data_dir = DatasetCatalog.DATA_DIR
             attrs = DatasetCatalog.DATASETS[name]
             args = dict(
@@ -166,18 +218,6 @@ class DatasetCatalog(object):
             )
             return dict(
                 factory="CVCClinicDataset",
-                args=args,
-            )
-        elif "etis" in name:
-            data_dir = DatasetCatalog.DATA_DIR
-            attrs = DatasetCatalog.DATASETS[name]
-            args = dict(
-                root=os.path.join(data_dir, attrs["data_dir"]),
-                annotation_file=os.path.join(data_dir, attrs["ann_file"]),
-                name=name,
-            )
-            return dict(
-                factory="ETISLaribDataset",
                 args=args,
             )
         else:
