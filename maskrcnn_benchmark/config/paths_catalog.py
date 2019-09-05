@@ -6,6 +6,7 @@ import os
 
 class DatasetCatalog(object):
     DATA_DIR = "datasets"
+
     DATASETS = {
         "coco_2017_train": {
             "img_dir": "coco/train2017",
@@ -181,9 +182,31 @@ class DatasetCatalog(object):
             "data_dir": "cvc-colondb-300/images",
             "ann_file": "cvc-colondb-300/annotations/val_only_polyp.json",
             "name": "cvc-colondb-val"
+        },
+
+
+
+        "cvc-video-elipses-train": {
+            "data_dir": "test-elipses/images",
+            "ann_file": "test-elipses/annotations/train.json",
+            "name": "cvc-video-elipses-train"
+        },
+        "cvc-video-segmented-train": {
+            "data_dir": "test-segmented/images",
+            "ann_file": "test-segmented/annotations/train.json",
+            "name": "cvc-video-segmented-train"
+        },
+        "cvc-video-elipses-test": {
+            "data_dir": "test-elipses/images",
+            "ann_file": "test-elipses/annotations/test.json",
+            "name": "cvc-video-elipses-test"
+        },
+        "cvc-video-segmented-test": {
+            "data_dir": "test-segmented/images",
+            "ann_file": "test-segmented/annotations/test.json",
+            "name": "cvc-video-segmented-test"
         }
     }
-
     @staticmethod
     def get(name):
         if "coco" in name:

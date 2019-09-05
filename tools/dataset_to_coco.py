@@ -176,7 +176,6 @@ def get_annotations_coco_image(segmentation_id, image_id, category_info, binary_
     else:
         return None
 
-
 def dataset_to_coco(root_folder: str, info, licenses, categories, seqs: list or None, out_name: str,
                     has_annotations: bool = True) -> None:
     coco_output = {
@@ -242,18 +241,21 @@ def rename_images(root_dir):
     MASKS_DIR = os.path.join(root_dir, "masks")
 
     for im in os.listdir(MASKS_DIR):
+        print(im)
+        extension = im.split(".")[1]
+
         # CVC train-val
-        # seq = int(im.split("-")[0])
-        # im_number = int(im.split(".")[0].split("-")[1])
-        # new_name = "{:03d}-{:04d}{}.{}".format(seq, im_number, MASK_EXTENSION, extension)
+        seq = int(im.split("-")[0])
+        im_number = int(im.split(".")[0].split("-")[1].split("_")[0])
+        new_name = "{:03d}-{:04d}{}.{}".format(seq, im_number, MASK_EXTENSION, extension)
 
         # CVC test
         # NO HAY MASCARAS
 
         # COLONDB
-        im_number, extension = im.split(".")
-        im_number = int(im_number)
-        new_name = "{:03d}{}.{}".format(im_number, MASK_EXTENSION, extension)
+        # im_number, extension = im.split(".")
+        # im_number = int(im_number)
+        # new_name = "{:03d}{}.{}".format(im_number, MASK_EXTENSION, extension)
 
         # ETIS-Larib
         # im_number = int(im.split(".")[0][1:])
@@ -302,7 +304,6 @@ def split_images_masks(image):
     r_im = Image.open(image).convert('L')
     r_im = np.array(r_im)
     kernel = np.ones((3,3))
-    # kernel = np.array([[1, 1, 1], [1, 1, 1], [1, 1, 1]])
     if r_im.sum() != 0:
         im, count = label(r_im, structure=kernel)
         if count <= 1:
@@ -353,8 +354,10 @@ def _gen_csv_for_dataset():
 
 
 if __name__ == '__main__':
-    train_seq = ["{:03d}".format(x) for x in range(1, 16)]
-    val_seq = ["{:03d}".format(x) for x in range(16, 19)]
+    train_seq = ["{:03d}".format(x) for x in [1, 7 ,11, 12, 18]]
+    val_seq = ["{:03d}".format(x) for x in [5, 15, 16]]
+
+
 
     # dataset_to_coco(ROOT_DIR_CVC_TRAIN_VAL, INFO_CVC, LICENSES, CATEGORIES, train_seq, "train.json",
     #                 has_annotations=True)
@@ -371,8 +374,8 @@ if __name__ == '__main__':
     # dataset_to_coco(ROOT_DIR_ETIS, INFO_ETIS, LICENSES, CATEGORIES, None, "train.json",
     #                 has_annotations=True)
     #
-    dataset_to_coco(ROOT_DIR_CVC_300, INFO_CVC, LICENSES, CATEGORIES, None, "train.json",
-                    has_annotations=True)
+    # dataset_to_coco(ROOT_DIR_CVC_300, INFO_CVC, LICENSES, CATEGORIES, None, "train.json",
+    #                 has_annotations=True)
     #
     # dataset_to_coco(ROOT_DIR_CVC_612, INFO_CVC, LICENSES, CATEGORIES, None, "train.json",
     #                 has_annotations=True)

@@ -196,7 +196,7 @@ def save_validation_images(gt, dt_bbox, dt_segm, im_ids, save_dir):
 
             ax_masks.add_collection(p)
         print("saving to: ", os.path.join(save_dir, gt.imgs[im_id]['file_name']))
-        #plt.show()
+        # plt.show()
 
         ax_orig.axis('off')
         ax_masks.axis('off')
@@ -213,9 +213,16 @@ if __name__ == '__main__':
     ap.add_argument("--no_metrics", action='store_false', default=True)
     ap.add_argument("--dataset", type=str)
 
-    experiment = "results/colon_classif_cosine+blur"
+    experiment = "results/new_CJ_video"
 
     data_dict = {
+        "test": {
+            'annotation_file': "../datasets/test-segmented/annotations/test.json",
+            'images_folder': "../datasets/CVC-VideoClinicDBtrain_valid/images/",
+            'results_folder': "../{}/inference/cvc-video-segmented-test/",
+            'split': "val"
+        }
+        ,
         "cvc-val": {
             'annotation_file': "../datasets/CVC-VideoClinicDBtrain_valid/annotations/val.json",
             'images_folder': "../datasets/CVC-VideoClinicDBtrain_valid/images/",
@@ -265,7 +272,8 @@ if __name__ == '__main__':
     # predictions
     eval_segm = os.path.exists(os.path.join(results_data['results_folder'].format(experiment), "segm.json"))
     dt_bbox = gt.loadRes(os.path.join(results_data['results_folder'].format(experiment), "bbox.json"))
-    det_segm = gt.loadRes(os.path.join(results_data['results_folder'].format(experiment), "segm.json")) if eval_segm else None
+    det_segm = gt.loadRes(
+        os.path.join(results_data['results_folder'].format(experiment), "segm.json")) if eval_segm else None
 
     evalutate(gt, dt_bbox, 'bbox')
     if eval_segm:
@@ -274,7 +282,8 @@ if __name__ == '__main__':
     detection_df = pd.DataFrame(columns=['image', "has_polyp", "confidence"])
     localization_df = pd.DataFrame(columns=['image', "center_x", "center_y", "confidence"])
     if calc_metrics:
-        calc_challenge_metrics(localization_df, detection_df, dt_bbox, results_data['results_folder'].format(experiment), results_data['split'])
+        calc_challenge_metrics(localization_df, detection_df, dt_bbox,
+                               results_data['results_folder'].format(experiment), results_data['split'])
 
     if save_ims:
         im_ids = gt.getImgIds()

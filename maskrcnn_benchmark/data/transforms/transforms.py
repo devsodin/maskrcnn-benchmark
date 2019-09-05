@@ -3,10 +3,9 @@ import random
 
 import torch
 import torchvision
-from torchvision.transforms import functional as F
-
-from maskrcnn_benchmark.structures.bounding_box import BoxList
 from PIL import ImageFilter
+from maskrcnn_benchmark.structures.bounding_box import BoxList
+from torchvision.transforms import functional as F
 
 
 class Compose(object):
@@ -83,7 +82,6 @@ class RandomGaussianBlur(object):
         self.kernel_size = kernel_size
 
     def __call__(self, image, target):
-
         if random.random() < self.prob:
             kernel_size = random.choice(self.kernel_size)
             image = image.filter(ImageFilter.GaussianBlur(kernel_size))
@@ -119,7 +117,6 @@ class RandomRotation(object):
 
             x_t = (torch.cos(angle) * x * scale + torch.sin(angle) * y) / scale
             y_t = (torch.sin(angle) * x * scale + torch.cos(angle) * y)
-
 
             n_target.append([x_t.min(), y_t.min(), x_t.max(), y_t.max()])
 
@@ -203,7 +200,7 @@ if __name__ == '__main__':
 
 
     ds = CVCClinicDataset("datasets/cvc-colondb-612/annotations/train.json", "datasets/cvc-colondb-612/images/",
-                          "colon612", Compose([RandomGaussianBlur(list(range(1,5)), 1)]))
+                          "colon612", Compose([ColorJitter(brightness=0.25, contrast=0.05,saturation=0.05, hue=(-0.05, 0.1))]))
 
     print(ds[0])
     for box in ds[0][1].bbox:

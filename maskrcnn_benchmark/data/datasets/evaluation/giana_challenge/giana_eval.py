@@ -9,7 +9,7 @@ from pycocotools import coco
 from scipy.ndimage.measurements import label
 
 
-def calc_challenge_metrics(loc_df, detect_df, dt, out_folder, split):
+def calc_challenge_metrics(loc_df, detect_df, dt, out_folder, dataset):
     for image in dt.loadImgs(ids=dt.getImgIds()):
         detect_on_image(detect_df, dt, image)
         localize_on_image(dt, image, loc_df)
@@ -19,8 +19,8 @@ def calc_challenge_metrics(loc_df, detect_df, dt, out_folder, split):
     loc_df.sort_values('image', inplace=True)
     loc_df.reset_index(inplace=True, drop=True)
 
-    detect_csvs = reformat_csvs(detect_df, split=split)
-    loc_csvs = reformat_csvs(loc_df, split=split)
+    detect_csvs = reformat_csvs(detect_df, dataset=dataset)
+    loc_csvs = reformat_csvs(loc_df, dataset=dataset)
 
     if not os.path.exists(os.path.join(out_folder, "detection")):
         os.makedirs(os.path.join(out_folder, "detection"))
@@ -38,7 +38,7 @@ def calc_challenge_metrics(loc_df, detect_df, dt, out_folder, split):
 def detect_on_image(detections, dt, image):
     detect = 0
     confidence = 0
-    anns = dt.getAnnIds(imgIds=image['id'], catIds=[1])
+    anns = dt.getAnnIds(imgIds=image['id'])
     if anns:
         detect = 1
         for ann in dt.loadAnns(anns):
@@ -53,7 +53,7 @@ def detect_on_image(detections, dt, image):
 
 
 def localize_on_image(dt, image, localization):
-    anns = dt.getAnnIds(imgIds=image['id'], catIds=[1])
+    anns = dt.getAnnIds(imgIds=image['id'])
     if anns:
         for ann in dt.loadAnns(anns):
             x, y, w, h = ann['bbox']
@@ -70,15 +70,19 @@ def delete_seq_code(csv):
     return csv
 
 
-def reformat_csvs(detections, split='test'):
+def reformat_csvs(detections, dataset):
     d = {}
 
-    if split == 'val':
+    if dataset == 'cvc-val':
         seqs = range(16, 19)
-    elif split == 'test':
+    elif dataset == 'cvc-test':
         seqs = range(1, 19)
+    elif dataset == 'cvc-segmented-test':
+        seqs = [5, 15, 16]
+    elif dataset == 'cvc-elipses-test':
+        seqs = [5, 15, 16]
     else:
-        raise ('invalid split - {}'.format(split))
+        raise ('invalid split - {}'.format(dataset))
 
     for seq in seqs:
         seq_rows = detections.loc[detections['image'].str.contains("{:03d}-".format(seq))].copy(deep=True)
@@ -89,8 +93,8 @@ def reformat_csvs(detections, split='test'):
     return d
 
 
-def do_giana_eval(results_folder, folder_detection, folder_localization, folder_gt, root_folder_output, annot_file):
-
+def do_giana_eval(results_folder, folder_detection, folder_localization, folder_gt, root_folder_output, annot_file,
+                  dataset_name):
     logger = logging.getLogger("maskrcnn_benchmark.inference")
     logger.info("Evaluating results (GIANA Challenge)")
 
@@ -100,9 +104,18 @@ def do_giana_eval(results_folder, folder_detection, folder_localization, folder_
     # ground truth
     gt = coco.COCO(annot_file)
 
+    if dataset_name == 'cvc-clinic-test':
+        dataset = 'cvc-test'
+    elif dataset_name == 'cvc-video-segmented-test':
+        dataset = "cvc-segmented-test"
+    elif dataset_name == 'cvc-video-elipses-test':
+        dataset = "cvc-elipses-test"
+    else:
+        raise ("invalid  giana dataset evaluation")
+
     # predictions
     dt_bbox = gt.loadRes(os.path.join(results_folder, "bbox.json"))
-    calc_challenge_metrics(localization_df, detection_df, dt_bbox, results_folder, "test")
+    calc_challenge_metrics(localization_df, detection_df, dt_bbox, results_folder, dataset)
     logger.info("Metrics calculated (GIANA Challenge)")
 
     folder_output_detection = os.path.join(root_folder_output, "detection")
@@ -134,10 +147,12 @@ def do_giana_eval(results_folder, folder_detection, folder_localization, folder_
         vid_name = localization_csv.split("/")[-1].split(".")[0]
         gt_vid_folder = os.path.join(folder_gt, vid_name)
 
+        plot_folder = os.path.join(root_folder_output, "plots")
         logger.info("Processing video {} - (GIANA Challenge)".format(vid_name))
         res_detection, res_localization = generate_results_per_video((detection_df, localization_df),
                                                                      (detection_confidence, localization_confidence),
-                                                                     thresholds, gt_vid_folder)
+                                                                     thresholds, gt_vid_folder,
+                                                                     plot_folder=plot_folder)
 
         pd.DataFrame.from_dict(res_detection, columns=["TP", "FP", "FN", "TN", "RT"], orient='index').to_csv(
             os.path.join(folder_output_detection, "d{}.csv".format(vid_name)))
@@ -187,11 +202,15 @@ def save_detection_plot(output_folder, threshold, vid_folder, video_gt, video_pr
     plt.title(title)
     plt.plot(video_gt, color='blue')
     plt.plot(video_pred, color='gold')
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
     plt.savefig(os.path.join(output_folder, "detect_plot-{}-{}.png".format(vid_folder.split("/")[-1], threshold)))
+    plt.clf()
 
 
-def process_video_for_detection(file, has_confidence, thresh, vid_folder):
-    video_len = len(os.listdir(vid_folder)) + 1
+def process_video_for_detection(file, has_confidence, thresh, vid_folder, plot_folder):
+    video_len = len(os.listdir(vid_folder)) +1
+    #len(set([im.split("_Polyp")[0] for im in os.listdir(vid_folder)])) + 1
     video_gt = np.zeros((video_len, 1))
     video_pred = np.zeros((video_len, 1))
 
@@ -200,11 +219,10 @@ def process_video_for_detection(file, has_confidence, thresh, vid_folder):
 
     tp, fp, fn, tn = 0, 0, 0, 0
     for frame in sorted(os.listdir(vid_folder)):
-
         polyp_n = int(frame.split("_")[0].split("-")[1])
         im_frame = Image.open(os.path.join(vid_folder, frame))
         is_polyp = np.asarray(im_frame).sum() > 0
-        video_gt[polyp_n] = 1.1 if is_polyp else 0
+        video_gt[polyp_n] = 1 if is_polyp else 0
 
         if is_polyp and first_polyp == -1:
             first_polyp = polyp_n
@@ -233,9 +251,11 @@ def process_video_for_detection(file, has_confidence, thresh, vid_folder):
                 else:
                     tn += 1
 
-            video_pred[polyp_n] = 0.9
+            video_pred[polyp_n] += 1
 
+    save_detection_plot(plot_folder, thresh, vid_folder,video_gt, video_pred)
     rt = first_detected_polyp - first_polyp if first_detected_polyp != -1 else -1
+
     return [tp, fp, fn, tn, rt], video_gt, video_pred
 
 
@@ -299,12 +319,12 @@ def process_video_for_localization(file, has_confidence, threshold, vid_folder):
     return [tp, fp, fn, tn, rt]
 
 
-def generate_results_per_video(videos, confidences, thresholds, gt):
+def generate_results_per_video(videos, confidences, thresholds, gt, plot_folder):
     detect_dict = {}
     local_dict = {}
     for threshold in thresholds:
         # TODO change plots
-        res_detection, _, _ = process_video_for_detection(videos[0], confidences[0], threshold, gt)
+        res_detection, _, _ = process_video_for_detection(videos[0], confidences[0], threshold, gt, plot_folder)
         res_localization = process_video_for_localization(videos[1], confidences[1], threshold, gt)
 
         detect_dict[threshold] = res_detection

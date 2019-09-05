@@ -45,6 +45,7 @@ def save_detection_plot(output_folder, threshold, vid_folder, video_gt, video_pr
     plt.plot(video_gt, color='blue')
     plt.plot(video_pred, color='gold')
     plt.savefig(os.path.join(output_folder, "detect_plot-{}-{}.png".format(vid_folder.split("/")[-1], threshold)))
+    plt.clf()
 
 
 def process_video_for_detection(file, has_confidence, thresh, vid_folder):

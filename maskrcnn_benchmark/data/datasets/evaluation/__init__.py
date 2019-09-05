@@ -24,7 +24,7 @@ def evaluate(dataset, predictions, output_folder, **kwargs):
         return voc_evaluation(**args)
     elif isinstance(dataset, datasets.CVCClinicDataset):
         coco_eval = coco_evaluation(**args)
-        if dataset.name != "cvc-clinic-test":
+        if dataset.name not in ["cvc-clinic-test", "cvc-video-segmented-test", "cvc-video-elipses-test"]:
             return coco_eval
         else:
             giana_eval(**args)

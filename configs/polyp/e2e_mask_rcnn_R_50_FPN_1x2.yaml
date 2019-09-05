@@ -5,7 +5,7 @@ MODEL:
     CONV_BODY: "R-50-FPN"
   RESNETS:
     BACKBONE_OUT_CHANNELS: 256
-#    STAGE_WITH_DCN: (False, True, True, True)
+#    STAGE_WITH_DCN: (True, True, True, True)
 #    WITH_MODULATED_DCN: True
 #    DEFORMABLE_GROUPS: 1
   RPN:
@@ -15,13 +15,13 @@ MODEL:
     PRE_NMS_TOP_N_TEST: 1000
     POST_NMS_TOP_N_TEST: 1000
     FPN_POST_NMS_TOP_N_TEST: 1000
-    FG_IOU_THRESHOLD: 0.7
+    FG_IOU_THRESHOLD: 0.8
     BG_IOU_THRESHOLD: 0.3
     NMS_THRESH: 0.7 # 0.7
     #MIN_SIZE: 0
   ROI_HEADS:
     USE_FPN: True
-    DETECTIONS_PER_IMG: 2
+    DETECTIONS_PER_IMG: 1
     SCORE_THRESH: 0.1
   ROI_BOX_HEAD:
     POOLER_RESOLUTION: 7
@@ -40,28 +40,33 @@ MODEL:
     SHARE_BOX_FEATURE_EXTRACTOR: False
   MASK_ON: True
 DATASETS:
-  TRAIN: ("cvc-colondb-train", "cvc-classification")
-  TEST: ("cvc-clinic-val", "cvc-clinic-test", "cvc-colondb-val","etis-larib", )
+#  TRAIN: ("cvc-colondb-train", "cvc-classification")
+#  TRAIN: ("cvc-clinic-train", "cvc-colondb-train", "cvc-classification")
+  TRAIN: ("cvc-clinic-train", )
+  TEST: ("cvc-clinic-val", "cvc-colondb-val","etis-larib", "cvc-clinic-test", )
 DATALOADER:
   SIZE_DIVISIBILITY: 32
 SOLVER:
 # 1 GPU
   BASE_LR: 0.0025
   WEIGHT_DECAY: 0.0001
-  STEPS: [0, 2648, 4236]
-  MAX_ITER: 5295 # 6 epochs
+#  STEPS: [0, 11865, 12049] # 2 epochs video, classif, clinic
+#  MAX_ITER: 12171 # 2 epochs video, classif, clinic
+  STEPS: [0, 13008, 20812] # 2 epochs video
+  MAX_ITER: 26015 # 2 epochs video
+#  STEPS: [0, 2648, 4236] #  6 epochs classif, clinic
+#  MAX_ITER: 5295 # 6 epochs classif, clinic
   IMS_PER_BATCH: 2
   SCHEDULER: "cosine"
-OUTPUT_DIR: "results/colon_classif_cosine+blur_sizesok"
+OUTPUT_DIR: "results/new_CJ2_video"
 INPUT:
   HUE: 0.1
-  BRIGHTNESS: 0.05
-  SATURATION: 0.05
+  BRIGHTNESS: 0.25
+  SATURATION: 0.1
   VERTICAL_FLIP_PROB_TRAIN: 0.4
   PROB_GAUSSIAN_BLUR: 0.5
-  BLUR_KERNEL_SIZE: [2]
+  BLUR_KERNEL_SIZE: [1,2,3,4]
 
-  # PROXIMO EXPERIMENTO A LAZNAR
   MIN_SIZE_TRAIN: (288,) # 384 x 288
   MAX_SIZE_TRAIN: 800
   MIN_SIZE_TEST: 288
