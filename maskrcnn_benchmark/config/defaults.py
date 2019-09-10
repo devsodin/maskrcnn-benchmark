@@ -64,6 +64,11 @@ _C.INPUT.VERTICAL_FLIP_PROB_TRAIN = 0.0
 _C.INPUT.PROB_GAUSSIAN_BLUR = 0.0
 _C.INPUT.BLUR_KERNEL_SIZE = [1, 2, 3, 4]
 
+# Gaussian Noise
+_C.INPUT.PROB_GAUSSIAN_NOISE = 0.0
+_C.INPUT.SIGMA_GAUSSIAN_NOISE = 0.1
+
+
 # -----------------------------------------------------------------------------
 # Dataset
 # -----------------------------------------------------------------------------

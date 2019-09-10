@@ -43,31 +43,30 @@ DATASETS:
 #  TRAIN: ("cvc-colondb-train", "cvc-classification")
 #  TRAIN: ("cvc-clinic-train", "cvc-colondb-train", "cvc-classification")
   TRAIN: ("cvc-clinic-train", )
-  TEST: ("cvc-clinic-val", "cvc-colondb-val","etis-larib", "cvc-clinic-test", )
+  TEST: ("cvc-clinic-val", "cvc-colondb-val","etis-larib",)
 DATALOADER:
   SIZE_DIVISIBILITY: 32
 SOLVER:
 # 1 GPU
   BASE_LR: 0.0025
   WEIGHT_DECAY: 0.0001
-#  STEPS: [0, 11865, 12049] # 2 epochs video, classif, clinic
-#  MAX_ITER: 12171 # 2 epochs video, classif, clinic
-  STEPS: [0, 13008, 20812] # 2 epochs video
-  MAX_ITER: 26015 # 2 epochs video
+  STEPS: [0, 2602, 4162] # 2 epochs video
+  MAX_ITER: 5203 # 2 epochs video
 #  STEPS: [0, 2648, 4236] #  6 epochs classif, clinic
 #  MAX_ITER: 5295 # 6 epochs classif, clinic
   IMS_PER_BATCH: 2
   SCHEDULER: "cosine"
-OUTPUT_DIR: "results/new_CJ2_video"
+OUTPUT_DIR: "results/CJ/1ep_sat_bright_contr10_hue05_alqm"
 INPUT:
-  HUE: 0.1
-  BRIGHTNESS: 0.25
-  SATURATION: 0.1
   VERTICAL_FLIP_PROB_TRAIN: 0.4
-  PROB_GAUSSIAN_BLUR: 0.5
-  BLUR_KERNEL_SIZE: [1,2,3,4]
+  SATURATION: 0.1
+  HUE: 0.05
+  BRIGHTNESS: 0.1
+  CONTRAST: 0.1
+#  PROB_GAUSSIAN_BLUR: 0.5
+#  BLUR_KERNEL_SIZE: [1,2,3,4]
 
-  MIN_SIZE_TRAIN: (288,) # 384 x 288
+  MIN_SIZE_TRAIN: (288,384,) # 384 x 288
   MAX_SIZE_TRAIN: 800
   MIN_SIZE_TEST: 288
   MAX_SIZE_TEST: 800 # un poco menos de la mitad de las classif

@@ -30,12 +30,14 @@ MODEL:
     SHARE_BOX_FEATURE_EXTRACTOR: False
   MASK_ON: True
 DATASETS:
-  TRAIN: ("coco_2014_train", "coco_2014_valminusminival")
-  TEST: ("coco_2014_minival",)
+  TRAIN: ("cvc-video-elipses-train", )
+  TEST: ("cvc-video-segmented-test", "cvc-video-elipses-train", )
 DATALOADER:
   SIZE_DIVISIBILITY: 32
 SOLVER:
-  BASE_LR: 0.02
+  BASE_LR: 0.0025
   WEIGHT_DECAY: 0.0001
-  STEPS: (60000, 80000)
-  MAX_ITER: 90000
+  STEPS: [0, 4963, 7940]
+  MAX_ITER: 9925 # 5 epochs
+  IMS_PER_BATCH: 2
+OUTPUT_DIR: "results/comparative/elipses"

@@ -213,7 +213,7 @@ if __name__ == '__main__':
     ap.add_argument("--no_metrics", action='store_false', default=True)
     ap.add_argument("--dataset", type=str)
 
-    experiment = "results/new_CJ_video"
+    experiment = "results/train_segmented"
 
     data_dict = {
         "test": {

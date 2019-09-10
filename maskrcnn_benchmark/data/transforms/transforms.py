@@ -139,6 +139,17 @@ class RandomRotation(object):
         return img, rotated_bbox
 
 
+class RandomGaussianNoise(object):
+    def __init__(self, prob=0.5, sigma=0.2):
+        self.prob = prob
+        self.sigma = sigma
+
+    def __call__(self, image, target):
+        if random.random() < self.prob:
+            image = image + torch.rand_like(image) * self.sigma
+        return image, target
+
+
 class RandomVerticalFlip(object):
     def __init__(self, prob=0.5):
         self.prob = prob
@@ -188,6 +199,14 @@ class Normalize(object):
         return image, target
 
 
+class ToPILImage(object):
+    def __init__(self, mode=None):
+        self.mode = mode
+
+    def __call__(self, pic, target):
+        return F.to_pil_image(pic, self.mode), target
+
+
 if __name__ == '__main__':
     from matplotlib import pyplot as plt
     from maskrcnn_benchmark.data.datasets import CVCClinicDataset
@@ -200,7 +219,8 @@ if __name__ == '__main__':
 
 
     ds = CVCClinicDataset("datasets/cvc-colondb-612/annotations/train.json", "datasets/cvc-colondb-612/images/",
-                          "colon612", Compose([ColorJitter(brightness=0.25, contrast=0.05,saturation=0.05, hue=(-0.05, 0.1))]))
+                          "colon612",
+                          Compose([ToTensor(), RandomGaussianNoise(prob=1), ToPILImage()]))
 
     print(ds[0])
     for box in ds[0][1].bbox:
