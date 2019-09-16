@@ -204,6 +204,7 @@ def save_detection_plot(output_folder, threshold, vid_folder, video_gt, video_pr
     plt.plot(video_pred, color='gold')
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
+    plt.rcParams["figure.figsize"] = [16, 9]
     plt.savefig(os.path.join(output_folder, "detect_plot-{}-{}.png".format(vid_folder.split("/")[-1], threshold)))
     plt.clf()
 

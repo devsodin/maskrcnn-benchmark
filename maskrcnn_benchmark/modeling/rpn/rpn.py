@@ -1,12 +1,12 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
 import torch
 import torch.nn.functional as F
-from torch import nn
-
 from maskrcnn_benchmark.modeling import registry
 from maskrcnn_benchmark.modeling.box_coder import BoxCoder
 from maskrcnn_benchmark.modeling.rpn.retinanet.retinanet import build_retinanet
 from maskrcnn_benchmark.structures.bounding_box import BoxList
+from torch import nn
+
 from .anchor_generator import make_anchor_generator
 from .inference import make_rpn_postprocessor
 from .loss import make_rpn_loss_evaluator
@@ -138,6 +138,9 @@ class RPNModule(torch.nn.Module):
         self.box_selector_test = box_selector_test
         self.loss_evaluator = loss_evaluator
 
+        self.previous_boxes = []
+        self.max_cache_boxes = 5
+
     def forward(self, images, features, original, targets=None):
         """
         Arguments:
@@ -187,8 +190,8 @@ class RPNModule(torch.nn.Module):
     def _forward_test(self, anchors, objectness, rpn_box_regression, images_orig):
 
         boxes = self.box_selector_test(anchors, objectness, rpn_box_regression)
-        # boxes = self.remove_saturated(boxes, images_orig)
 
+        new_boxes = None
         if self.cfg.MODEL.RPN_ONLY:
             # For end-to-end models, the RPN proposals are an intermediate state
             # and don't bother to sort them in decreasing score order. For RPN-only
@@ -198,7 +201,57 @@ class RPNModule(torch.nn.Module):
                 box.get_field("objectness").sort(descending=True)[1] for box in boxes
             ]
             boxes = [box[ind] for box, ind in zip(boxes, inds)]
-        return boxes, {}
+
+        if len(self.previous_boxes) < self.max_cache_boxes:
+            self.previous_boxes.append(boxes)
+        else:
+            self.previous_boxes.append(boxes)
+            self.previous_boxes = self.previous_boxes[1:]
+
+            new_boxes = self.remove_unexpected_boxes()
+
+        if new_boxes is not None:
+            return new_boxes, {}
+        else:
+            return boxes, {}
+
+    def remove_unexpected_boxes(self):
+        """
+        Method to remove boxes detecten on last frame that not appear on the last 5 detections.
+        :return:
+        """
+        # last_frame_stay = BoxList([],self.previous_boxes[-1][0].bbox.size)
+        stay = None
+        last_frame_bboxes = self.previous_boxes[-1]
+        # last_frame_scores = self.previous_boxes[-1].get_field("objectness")
+
+        all_invalid = True
+        # list of bbox in last frame
+        for bbox in last_frame_bboxes:
+            for boxes in bbox.bbox:
+
+                for old_frame in reversed(self.previous_boxes[:-1]):
+                    for old_bbox in old_frame:
+                        for old_box in old_bbox.bbox:
+                            i_xmin = torch.max(boxes[0], old_box[0])
+                            i_ymin = torch.max(boxes[1], old_box[1])
+                            i_xmax = torch.max(boxes[2], old_box[2])
+                            i_ymax = torch.max(boxes[3], old_box[3])
+
+                            if i_xmax > i_xmin and i_ymin > i_ymax:
+                                all_invalid = False
+                                if stay is None:
+                                    stay = boxes
+                                    stay = torch.unsqueeze(stay, dim=-1)
+                                else:
+                                    add = torch.unsqueeze(boxes, dim=-1)
+                                    stay = torch.cat((stay, add), dim=1)
+
+        if not all_invalid:
+            stay_tensor = torch.as_tensor(stay, dtype=torch.float32, device="cuda")
+            return BoxList(stay_tensor, self.previous_boxes[-1][0].bbox.size, mode="xyxy")
+        else:
+            return None
 
     def remove_saturated(self, boxes, images_orig):
 

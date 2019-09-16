@@ -13,13 +13,13 @@ def calculate_average_results(results_dict: dict, thresholds, output_file):
         # TP, FP, FN, TN, RT
         results = [0, 0, 0, 0]
         sums = [0, 0, 0, 0]
-        srt = 0
+        sum_rt = 0
         drt = 0
         for vid, res_dict in results_dict.items():
             results = [res + new for res, new in zip(results, res_dict[threshold][:-1])]
             sums = [val + new for val, new in zip(sums, results)]
             print(sums)
-            srt = srt + res_dict[threshold][-1] if res_dict[threshold][-1] != -1 else srt
+            sum_rt = sum_rt + res_dict[threshold][-1] if res_dict[threshold][-1] != -1 else sum_rt
             drt = drt + 1 if res_dict[threshold][-1] != -1 else drt
 
         tp, fp, fn, tn = sums[0], sums[1], sums[2], sums[3]
@@ -27,7 +27,7 @@ def calculate_average_results(results_dict: dict, thresholds, output_file):
         pre = tp / (tp + fp)
         rec = tp / (tp + fn)
         spec = tn / (fp + tn)
-        mean_rt = srt / drt
+        mean_rt = sum_rt / drt
         row = results + [acc, pre, rec, spec, mean_rt]
         avg.loc[-1] = row
 
@@ -44,6 +44,7 @@ def save_detection_plot(output_folder, threshold, vid_folder, video_gt, video_pr
     plt.title(title)
     plt.plot(video_gt, color='blue')
     plt.plot(video_pred, color='gold')
+    plt.rcParams["figure.figsize"] = [16, 9]
     plt.savefig(os.path.join(output_folder, "detect_plot-{}-{}.png".format(vid_folder.split("/")[-1], threshold)))
     plt.clf()
 

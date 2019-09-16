@@ -119,6 +119,8 @@ class RPNPostProcessor(torch.nn.Module):
                 max_proposals=self.post_nms_top_n,
                 score_field="objectness",
             )
+
+
             result.append(boxlist)
         return result
 

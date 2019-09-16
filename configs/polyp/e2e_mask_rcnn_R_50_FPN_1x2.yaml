@@ -1,23 +1,27 @@
 MODEL:
   META_ARCHITECTURE: "GeneralizedRCNN"
   WEIGHT: "catalog://ImageNetPretrained/MSRA/R-50"
+#  WEIGHT: "catalog://ImageNetPretrained/MSRA/R-101"
   BACKBONE:
     CONV_BODY: "R-50-FPN"
+#    CONV_BODY: "R-101-FPN"
   RESNETS:
     BACKBONE_OUT_CHANNELS: 256
-#    STAGE_WITH_DCN: (True, True, True, True)
-#    WITH_MODULATED_DCN: True
-#    DEFORMABLE_GROUPS: 1
+  #    STAGE_WITH_DCN: (True, True, True, True)
+  #    WITH_MODULATED_DCN: True
+  #    DEFORMABLE_GROUPS: 1
   RPN:
     USE_FPN: True
     ANCHOR_STRIDE: (4, 8, 16, 32, 64)
+    ANCHOR_SIZES: (32, 64, 128, 256, 512)
     PRE_NMS_TOP_N_TRAIN: 2000
     PRE_NMS_TOP_N_TEST: 1000
-    POST_NMS_TOP_N_TEST: 1000
-    FPN_POST_NMS_TOP_N_TEST: 1000
+    POST_NMS_TOP_N_TEST: 5
+    FPN_POST_NMS_TOP_N_TEST: 5
     FG_IOU_THRESHOLD: 0.8
     BG_IOU_THRESHOLD: 0.3
     NMS_THRESH: 0.7 # 0.7
+    POSITIVE_FRACTION: 0.25
     #MIN_SIZE: 0
   ROI_HEADS:
     USE_FPN: True
@@ -40,31 +44,30 @@ MODEL:
     SHARE_BOX_FEATURE_EXTRACTOR: False
   MASK_ON: True
 DATASETS:
-#  TRAIN: ("cvc-colondb-train", "cvc-classification")
-#  TRAIN: ("cvc-clinic-train", "cvc-colondb-train", "cvc-classification")
+#  TRAIN: ("cvc-video-segmented-train", "cvc-colondb-train", "cvc-classification")
   TRAIN: ("cvc-clinic-train", )
-  TEST: ("cvc-clinic-val", "cvc-colondb-val","etis-larib",)
+  TEST: ("cvc-clinic-val", "cvc-colondb-val","etis-larib","cvc-clinic-test")
 DATALOADER:
   SIZE_DIVISIBILITY: 32
 SOLVER:
-# 1 GPU
+  # 1 GPU
   BASE_LR: 0.0025
   WEIGHT_DECAY: 0.0001
-  STEPS: [0, 2602, 4162] # 2 epochs video
-  MAX_ITER: 5203 # 2 epochs video
-#  STEPS: [0, 2648, 4236] #  6 epochs classif, clinic
-#  MAX_ITER: 5295 # 6 epochs classif, clinic
+  STEPS: [0, 1985, 3176] # 1 epochs
+  MAX_ITER: 3970 # 1 epochs
+#    STEPS: [0, 2648, 4236] #  6 epochs classif, clinic
+#    MAX_ITER: 5295 # 6 epochs classif, clinic
   IMS_PER_BATCH: 2
   SCHEDULER: "cosine"
-OUTPUT_DIR: "results/CJ/1ep_sat_bright_contr10_hue05_alqm"
+OUTPUT_DIR: "results/tust"
 INPUT:
   VERTICAL_FLIP_PROB_TRAIN: 0.4
   SATURATION: 0.1
   HUE: 0.05
   BRIGHTNESS: 0.1
   CONTRAST: 0.1
-#  PROB_GAUSSIAN_BLUR: 0.5
-#  BLUR_KERNEL_SIZE: [1,2,3,4]
+  PROB_GAUSSIAN_BLUR: 0.5
+  BLUR_KERNEL_SIZE: [1,2,3]
 
   MIN_SIZE_TRAIN: (288,384,) # 384 x 288
   MAX_SIZE_TRAIN: 800
