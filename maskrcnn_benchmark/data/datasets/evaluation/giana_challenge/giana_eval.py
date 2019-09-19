@@ -171,16 +171,14 @@ def calculate_average_results(results_dict: dict, thresholds, output_file):
     for threshold in thresholds:
         # TP, FP, FN, TN, RT
         results = [0, 0, 0, 0]
-        sums = [0, 0, 0, 0]
         srt = 0
         drt = 0
         for vid, res_dict in results_dict.items():
             results = [res + new for res, new in zip(results, res_dict[threshold][:-1])]
-            sums = [val + new for val, new in zip(sums, results)]
             srt = srt + res_dict[threshold][-1] if res_dict[threshold][-1] != -1 else srt
             drt = drt + 1 if res_dict[threshold][-1] != -1 else drt
 
-        tp, fp, fn, tn = sums[0], sums[1], sums[2], sums[3]
+        tp, fp, fn, tn = results[0], results[1], results[2], results[3]
         acc = (tp + tn) / (tp + fp + fn + tn)
         pre = tp / (tp + fp)
         rec = tp / (tp + fn)

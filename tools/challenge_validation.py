@@ -12,17 +12,16 @@ def calculate_average_results(results_dict: dict, thresholds, output_file):
     for threshold in thresholds:
         # TP, FP, FN, TN, RT
         results = [0, 0, 0, 0]
-        sums = [0, 0, 0, 0]
         sum_rt = 0
         drt = 0
+        # for every video calc sum of metrics
         for vid, res_dict in results_dict.items():
+            # sum of tp, fp, fn , tn
             results = [res + new for res, new in zip(results, res_dict[threshold][:-1])]
-            sums = [val + new for val, new in zip(sums, results)]
-            print(sums)
             sum_rt = sum_rt + res_dict[threshold][-1] if res_dict[threshold][-1] != -1 else sum_rt
             drt = drt + 1 if res_dict[threshold][-1] != -1 else drt
 
-        tp, fp, fn, tn = sums[0], sums[1], sums[2], sums[3]
+        tp, fp, fn, tn = results[0], results[1], results[2], results[3]
         acc = (tp + tn) / (tp + fp + fn + tn)
         pre = tp / (tp + fp)
         rec = tp / (tp + fn)
@@ -117,6 +116,7 @@ def process_video_for_localization(file, has_confidence, threshold, vid_folder):
 
         if is_polyp and first_polyp == -1:
             first_polyp = polyp_n
+        # frame output = file rows with id (file[0]) = polyp_n
         frame_output = file.loc[file[0] == polyp_n]
         if has_confidence:
             frame_output = frame_output.loc[frame_output[3] >= threshold]
@@ -177,7 +177,7 @@ def do_giana_eval(folder_detection, folder_localization, folder_gt, root_folder_
     folder_output_localization = os.path.join(root_folder_output, "localization")
     average_detection_output_file = os.path.join(folder_output_detection, "average.csv")
     average_localization_output_file = os.path.join(folder_output_localization, "average.csv")
-    thresholds = [x / 10 for x in range(10)]
+    thresholds = [0.2]
 
     if not os.path.exists(folder_output_detection):
         os.makedirs(folder_output_detection)
@@ -232,6 +232,6 @@ if __name__ == '__main__':
 
     if output_folder is None:
         output_folder = os.path.join(params.res, "results_giana")
-    folder_gt = "/home/yael/PycharmProjects/maskrcnn-benchmark/datasets/cvcvideoclinicdbtest/GT"
+    folder_gt = "/home/yael/PycharmProjects/maskrcnn-benchmark/datasets/test-elipses/masks"
 
     do_giana_eval(folder_detection, folder_localization, folder_gt, output_folder)

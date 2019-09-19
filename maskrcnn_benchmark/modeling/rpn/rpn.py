@@ -113,7 +113,7 @@ class RPNModule(torch.nn.Module):
     proposals and losses. Works for both FPN and non-FPN.
     """
 
-    def __init__(self, cfg, in_channels):
+    def __init__(self, cfg, in_channels, custom_postprocess=False):
         super(RPNModule, self).__init__()
 
         self.cfg = cfg.clone()
@@ -139,7 +139,8 @@ class RPNModule(torch.nn.Module):
         self.loss_evaluator = loss_evaluator
 
         self.previous_boxes = []
-        self.max_cache_boxes = 5
+        self.max_cache_boxes = 3
+        self.post_process_methods = custom_postprocess
 
     def forward(self, images, features, original, targets=None):
         """
@@ -202,22 +203,27 @@ class RPNModule(torch.nn.Module):
             ]
             boxes = [box[ind] for box, ind in zip(boxes, inds)]
 
-        if len(self.previous_boxes) < self.max_cache_boxes:
-            self.previous_boxes.append(boxes)
-        else:
-            self.previous_boxes.append(boxes)
-            self.previous_boxes = self.previous_boxes[1:]
+        if self.post_process_methods:
+            if len(self.previous_boxes) < self.max_cache_boxes:
+                self.previous_boxes.append(boxes)
+            else:
+                self.previous_boxes.append(boxes)
+                self.previous_boxes = self.previous_boxes[1:]
 
-            new_boxes = self.remove_unexpected_boxes()
+                new_boxes = self.remove_unexpected_boxes()
+
+
 
         if new_boxes is not None:
+            # if self.post_process_methods:
+            #     new_boxes = self.remove_saturated(new_boxes,images_orig)
             return new_boxes, {}
         else:
             return boxes, {}
 
     def remove_unexpected_boxes(self):
         """
-        Method to remove boxes detecten on last frame that not appear on the last 5 detections.
+        Method to remove boxes detected on last frame that not appear on the last 5 detections.
         :return:
         """
         # last_frame_stay = BoxList([],self.previous_boxes[-1][0].bbox.size)
@@ -286,6 +292,7 @@ class RPNModule(torch.nn.Module):
 
                 # TODO learn threshold
                 if avg <= 220:
+                    print("removing_sat bbox")
                     stay.append([x, y, x_, y_])
                 # else:
                 #     plt.imshow(original)
@@ -305,4 +312,4 @@ def build_rpn(cfg, in_channels):
     if cfg.MODEL.RETINANET_ON:
         return build_retinanet(cfg, in_channels)
 
-    return RPNModule(cfg, in_channels)
+    return RPNModule(cfg, in_channels, cfg.MODEL.RPN.CUSTOM_POSTPROCESS)

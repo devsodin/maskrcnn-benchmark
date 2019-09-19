@@ -205,7 +205,14 @@ class DatasetCatalog(object):
             "data_dir": "test-segmented/images",
             "ann_file": "test-segmented/annotations/test.json",
             "name": "cvc-video-segmented-test"
-        }
+        },
+
+        "debug": {
+            "data_dir": "test-segmented/images",
+            "ann_file": "test-segmented/annotations/test.json",
+            "name": "cvc-video-segmented-test"
+        },
+
     }
     @staticmethod
     def get(name):

@@ -128,12 +128,15 @@ def localize_on_image(dt, image, localization):
             localization.sort_index()
 
 
-def show_bbox(bbox):
+def show_bbox(bbox, color=None):
     [bbox_x, bbox_y, bbox_w, bbox_h] = bbox
     poly = [[bbox_x, bbox_y], [bbox_x, bbox_y + bbox_h], [bbox_x + bbox_w, bbox_y + bbox_h],
             [bbox_x + bbox_w, bbox_y]]
 
-    p = Polygon(poly, fill=False)
+    if color is not None:
+        p = Polygon(poly, edgecolor=color, facecolor='none')
+    else:
+        p = Polygon(poly, fill=False)
 
     return p
 
@@ -187,11 +190,11 @@ def save_validation_images(gt, dt_bbox, dt_segm, im_ids, save_dir):
             if dt_segm is not None:
                 annIds = dt_segm.getAnnIds(imgIds=im_id, catIds=[1])
                 anns = dt_segm.loadAnns(annIds)
-                showAnns(dt_segm, anns, pred_color)
+                showAnns(dt_segm, anns, pred_color_tp)
 
             p = PatchCollection(pred_bboxes, alpha=0.3)
             p.set_facecolor('none')
-            p.set_edgecolor(pred_color)
+            p.set_edgecolor(pred_color_tp)
             p.set_linewidth(3)
 
             ax_masks.add_collection(p)
@@ -206,6 +209,56 @@ def save_validation_images(gt, dt_bbox, dt_segm, im_ids, save_dir):
         plt.close()
 
 
+def show_annotations_giana(gt, save_dir, mask_extension):
+    dt_bbox = gt.loadRes(os.path.join(results_data['results_folder'].format(experiment), "bbox.json"))
+
+    for image in gt.imgs.values():
+
+        im_id = image['id']
+
+        pred_im_annots = dt_bbox.getAnnIds(imgIds=im_id, catIds=[1])
+        pred_annots = dt_bbox.loadAnns(ids=pred_im_annots)
+
+        file = os.path.join(results_data['masks_folder'],
+                            gt.imgs.get(im_id)['file_name'].split(".")[0] + mask_extension)
+        mask = plt.imread(file)
+
+        subfolder = None
+        fig, ax = plt.subplots(1)
+
+        if not pred_annots:
+            if mask.max() > 0:
+                subfolder = "FN"
+            else:
+                subfolder = "TN"
+        else:
+            for pred_annot in pred_annots:
+
+                bbox = pred_annot['bbox']
+                center_x, center_y = int(bbox[0] + 0.5 * bbox[2]), int(bbox[1] + 0.5 * bbox[3])
+
+                if mask[center_y, center_x]:
+                    pred_polygon = show_bbox(pred_annot["bbox"], color='g')
+                    subfolder = "TP"
+                else:
+                    pred_polygon = show_bbox(pred_annot["bbox"], color='r')
+                    subfolder = "FP"
+
+                ax.add_patch(pred_polygon)
+                ax.annotate("{:.2f}".format(pred_annot['score']), xy=pred_polygon.xy[1], annotation_clip=False,
+                            color='white')
+
+        file = os.path.join(results_data['images_folder'], gt.imgs.get(im_id)['file_name'])
+        im = plt.imread(file)
+        ax.imshow(im)
+        plt.tight_layout()
+
+        plt.savefig(os.path.join(save_dir, subfolder, gt.imgs[im_id]['file_name']))
+
+        plt.clf()
+        plt.close()
+
+
 if __name__ == '__main__':
 
     ap = ArgumentParser()
@@ -213,13 +266,15 @@ if __name__ == '__main__':
     ap.add_argument("--no_metrics", action='store_false', default=True)
     ap.add_argument("--dataset", type=str)
 
-    experiment = "results/bg20"
+    experiment = "results/exp_post/3f_post"
 
     data_dict = {
         "test": {
             'annotation_file': "../datasets/test-segmented/annotations/test.json",
             'images_folder': "../datasets/CVC-VideoClinicDBtrain_valid/images/",
+            'masks_folder': "../datasets/CVC-VideoClinicDBtrain_valid/masks/",
             'results_folder': "../{}/inference/cvc-video-segmented-test/",
+            'mask_extension': "_Polyp_1.tif",
             'split': "val"
         }
         ,
@@ -227,12 +282,16 @@ if __name__ == '__main__':
             'annotation_file': "../datasets/CVC-VideoClinicDBtrain_valid/annotations/val.json",
             'images_folder': "../datasets/CVC-VideoClinicDBtrain_valid/images/",
             'results_folder': "../{}/inference/cvc-clinic-val/",
+            'masks_folder': "../datasets/CVC-VideoClinicDBtrain_valid/masks/",
+            'mask_extension': "_Polyp_1.tif",
             'split': "val"
         },
         "cvc-test": {
             'annotation_file': "../datasets/cvcvideoclinicdbtest/annotations/test.json",
             'images_folder': "../datasets/cvcvideoclinicdbtest/images/",
             'results_folder': "../{}/inference/cvc-clinic-test/",
+            'masks_folder': "../datasets/cvcvideoclinicdbtest/masks/",
+            'mask_extension': "_mask.tif",
             'split': "test"
         },
         "etis": {
@@ -264,7 +323,8 @@ if __name__ == '__main__':
     calc_metrics = params.no_metrics
 
     gt_color = "blue"
-    pred_color = "gold"
+    pred_color_tp = "green"
+    pred_color_fp = "blue"
 
     # ground truth
     gt = coco.COCO(results_data['annotation_file'])
@@ -290,4 +350,11 @@ if __name__ == '__main__':
         save_dir = os.path.join(results_data['results_folder'].format(experiment), "ims")
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
-        save_validation_images(gt, dt_bbox, det_segm, im_ids, save_dir)
+            os.makedirs(os.path.join(save_dir, "TP"))
+            os.makedirs(os.path.join(save_dir, "FP"))
+            os.makedirs(os.path.join(save_dir, "FN"))
+            os.makedirs(os.path.join(save_dir, "TN"))
+
+        show_annotations_giana(gt, save_dir, results_data['mask_extension'])
+
+        # save_validation_images(gt, dt_bbox, det_segm, im_ids, save_dir)

@@ -128,6 +128,7 @@ class RPNLossComputation(object):
             objectness[sampled_inds], labels[sampled_inds]
         )
 
+
         return objectness_loss, box_loss
 
 # This function should be overwritten in RetinaNet
