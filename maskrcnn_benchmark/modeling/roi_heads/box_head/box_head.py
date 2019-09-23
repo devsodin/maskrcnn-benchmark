@@ -2,6 +2,7 @@
 import torch
 from torch import nn
 
+from maskrcnn_benchmark.structures.bounding_box import BoxList
 from .roi_box_feature_extractors import make_roi_box_feature_extractor
 from .roi_box_predictors import make_roi_box_predictor
 from .inference import make_roi_box_post_processor
@@ -21,7 +22,10 @@ class ROIBoxHead(torch.nn.Module):
         self.post_processor = make_roi_box_post_processor(cfg)
         self.loss_evaluator = make_roi_box_loss_evaluator(cfg)
 
-    def forward(self, features, proposals, targets=None):
+        self.previous_boxes = []
+        self.max_cache_boxes = 5
+
+    def forward(self, features, proposals, orig_images, targets=None):
         """
         Arguments:
             features (list[Tensor]): feature-maps from possibly several levels
@@ -50,6 +54,17 @@ class ROIBoxHead(torch.nn.Module):
 
         if not self.training:
             result = self.post_processor((class_logits, box_regression), proposals)
+
+            if len(self.previous_boxes) < self.max_cache_boxes:
+                self.previous_boxes.append(result)
+            else:
+                self.previous_boxes.append(result)
+                self.previous_boxes = self.previous_boxes[1:]
+
+                # new_boxes = self.remove_unexpected_boxes()
+
+            result = self.remove_saturated(result, orig_images)
+
             return x, result, {}
 
         loss_classifier, loss_box_reg = self.loss_evaluator(
@@ -60,6 +75,48 @@ class ROIBoxHead(torch.nn.Module):
             proposals,
             dict(loss_classifier=loss_classifier, loss_box_reg=loss_box_reg),
         )
+
+    def remove_saturated(self, boxes, images_orig):
+
+        import numpy as np
+        from maskrcnn_benchmark.structures.boxlist_ops import cat_boxlist
+
+        n_boxes = []
+        for boxlist, original in zip(boxes, images_orig):
+            stay = []
+            for box, score in zip(boxlist.bbox, boxlist.get_field("scores")):
+                x = box[0]
+                y = box[1]
+                x_ = box[2]
+                y_ = box[3]
+
+                region = np.array(original)[x.int():x_.int(), y.int():y_.int()]
+                if region.shape[0] <= 0 or region.shape[1] <= 1:
+                    continue
+
+                avg = region.mean()
+                std = region.std()
+
+                # TODO learn threshold
+                if avg <= 240:
+                    new_box = BoxList([[x, y, x_, y_]], boxlist.size, mode="xyxy")
+                    new_box.add_field("scores", torch.unsqueeze(score,-1).cpu())
+                    stay.append(new_box)
+                else:
+                    print("removing_sat bbox")
+
+                # else:
+                #     plt.imshow(original)
+                #     plt.show()
+                #     plt.imshow(region)
+                #     plt.show()
+            if len(stay) > 0:
+                n_boxes.append(cat_boxlist(stay))
+
+        boxes = n_boxes
+        return boxes
+
+
 
 
 def build_roi_box_head(cfg, in_channels):

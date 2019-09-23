@@ -8,7 +8,7 @@ from maskrcnn_benchmark.structures.bounding_box import BoxList
 from maskrcnn_benchmark.modeling.roi_heads.box_head.inference import make_roi_box_post_processor
 
 
-def im_detect_bbox_aug(model, images, device):
+def im_detect_bbox_aug(model, images, device, orig_images):
     # Collect detections computed under different transformations
     boxlists_ts = []
     for _ in range(len(images)):
@@ -25,14 +25,14 @@ def im_detect_bbox_aug(model, images, device):
 
     # Compute detections for the original image (identity transform)
     boxlists_i = im_detect_bbox(
-        model, images, cfg.INPUT.MIN_SIZE_TEST, cfg.INPUT.MAX_SIZE_TEST, device
+        model, images, cfg.INPUT.MIN_SIZE_TEST, cfg.INPUT.MAX_SIZE_TEST, device, orig_images
     )
     add_preds_t(boxlists_i)
 
     # Perform detection on the horizontally flipped image
     if cfg.TEST.BBOX_AUG.H_FLIP:
         boxlists_hf = im_detect_bbox_hflip(
-            model, images, cfg.INPUT.MIN_SIZE_TEST, cfg.INPUT.MAX_SIZE_TEST, device
+            model, images, cfg.INPUT.MIN_SIZE_TEST, cfg.INPUT.MAX_SIZE_TEST, device, orig_images
         )
         add_preds_t(boxlists_hf)
 
@@ -40,13 +40,13 @@ def im_detect_bbox_aug(model, images, device):
     for scale in cfg.TEST.BBOX_AUG.SCALES:
         max_size = cfg.TEST.BBOX_AUG.MAX_SIZE
         boxlists_scl = im_detect_bbox_scale(
-            model, images, scale, max_size, device
+            model, images, scale, max_size, device, orig_images
         )
         add_preds_t(boxlists_scl)
 
         if cfg.TEST.BBOX_AUG.SCALE_H_FLIP:
             boxlists_scl_hf = im_detect_bbox_scale(
-                model, images, scale, max_size, device, hflip=True
+                model, images, scale, max_size, device, orig_images, hflip=True
             )
             add_preds_t(boxlists_scl_hf)
 
@@ -68,7 +68,7 @@ def im_detect_bbox_aug(model, images, device):
     return results
 
 
-def im_detect_bbox(model, images, target_scale, target_max_size, device):
+def im_detect_bbox(model, images, target_scale, target_max_size, device, orig_images):
     """
     Performs bbox detection on the original image.
     """
@@ -81,10 +81,10 @@ def im_detect_bbox(model, images, target_scale, target_max_size, device):
     ])
     images = [transform(image) for image in images]
     images = to_image_list(images, cfg.DATALOADER.SIZE_DIVISIBILITY)
-    return model(images.to(device))
+    return model(images.to(device), orig_images)
 
 
-def im_detect_bbox_hflip(model, images, target_scale, target_max_size, device):
+def im_detect_bbox_hflip(model, images, target_scale, target_max_size, device, orig_images):
     """
     Performs bbox detection on the horizontally flipped image.
     Function signature is the same as for im_detect_bbox.
@@ -99,20 +99,20 @@ def im_detect_bbox_hflip(model, images, target_scale, target_max_size, device):
     ])
     images = [transform(image) for image in images]
     images = to_image_list(images, cfg.DATALOADER.SIZE_DIVISIBILITY)
-    boxlists = model(images.to(device))
+    boxlists = model(images.to(device), orig_images)
 
     # Invert the detections computed on the flipped image
     boxlists_inv = [boxlist.transpose(0) for boxlist in boxlists]
     return boxlists_inv
 
 
-def im_detect_bbox_scale(model, images, target_scale, target_max_size, device, hflip=False):
+def im_detect_bbox_scale(model, images, target_scale, target_max_size, device, orig_images, hflip=False):
     """
     Computes bbox detections at the given scale.
     Returns predictions in the scaled image space.
     """
     if hflip:
-        boxlists_scl = im_detect_bbox_hflip(model, images, target_scale, target_max_size, device)
+        boxlists_scl = im_detect_bbox_hflip(model, images, target_scale, target_max_size, device, orig_images)
     else:
-        boxlists_scl = im_detect_bbox(model, images, target_scale, target_max_size, device)
+        boxlists_scl = im_detect_bbox(model, images, target_scale, target_max_size, device, orig_images)
     return boxlists_scl

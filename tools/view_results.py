@@ -266,7 +266,7 @@ if __name__ == '__main__':
     ap.add_argument("--no_metrics", action='store_false', default=True)
     ap.add_argument("--dataset", type=str)
 
-    experiment = "results/exp_post/3f_post"
+    experiment = "results/comparative/elipses_wDA/"
 
     data_dict = {
         "test": {
