@@ -15,7 +15,12 @@ class CVCClinicDataset(CocoDetection):
         self.name = name
         self.annotation_file = annotation_file
 
-        self.ids = sorted(self.ids)
+        files = sorted([v['file_name'] for key, v in self.coco.imgs.items()])
+        self.ids = []
+        for f in files:
+            for k, fn in self.coco.imgs.items():
+                if fn['file_name'] == f:
+                    self.ids.append(k)
 
         self.categories = {cat['id']: cat['name'] for cat in self.coco.cats.values()}
 
@@ -36,10 +41,10 @@ class CVCClinicDataset(CocoDetection):
         target = coco.loadAnns(ann_ids)
 
         path = coco.loadImgs(img_id)[0]['file_name']
-
         image = Image.open(os.path.join(self.root, path)).convert('RGB')
 
-        orig_image = image.convert("L")
+        orig_image = image
+        # orig_image = image.convert("L")
 
         # filter crowd annotations
         # TODO might be better to add an extra field
@@ -77,7 +82,7 @@ if __name__ == '__main__':
                             "../../../datasets/CVC-classification/images", False, None)
     print(test[0])
 
-    batch = test[0]
+    batch = test[1152]
 
     print(batch)
     import numpy as np

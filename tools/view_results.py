@@ -8,6 +8,7 @@ from matplotlib.collections import PatchCollection
 from matplotlib.colors import ColorConverter
 from matplotlib.patches import Polygon
 from pycocotools import coco, cocoeval
+from PIL import Image
 
 
 def showAnns(coco_object, anns, color):
@@ -148,65 +149,44 @@ def evalutate(gt, dt, mode='bbox'):
     evaluation.summarize()
 
 
-def save_validation_images(gt, dt_bbox, dt_segm, im_ids, save_dir):
-    for im_id in im_ids:
-        gt_im_annots = gt.getAnnIds(imgIds=im_id, catIds=[1])
+def false_positive_metrics(gt, save_dir, mask_extension):
+    dt_bbox = gt.loadRes(os.path.join(results_data['results_folder'].format(experiment), "bbox.json"))
+
+    for image in gt.imgs.values():
+
+        im_id = image['id']
+
         pred_im_annots = dt_bbox.getAnnIds(imgIds=im_id, catIds=[1])
-
         pred_annots = dt_bbox.loadAnns(ids=pred_im_annots)
-        gt_annots = gt.loadAnns(ids=gt_im_annots)
 
-        print("validating ", results_data['images_folder'] + gt.imgs[im_id]['file_name'])
+        mask_file = os.path.join(results_data['masks_folder'],
+                            gt.imgs.get(im_id)['file_name'].split(".")[0] + mask_extension)
+        mask = plt.imread(mask_file)
 
-        fig, (ax_orig, ax_masks) = plt.subplots(2, 1, figsize=(10, 15))
-        ax_orig.imshow(plt.imread(results_data['images_folder'] + gt.imgs[im_id]['file_name']))
-        ax_masks.imshow(plt.imread(results_data['images_folder'] + gt.imgs[im_id]['file_name']))
+        fig, ax = plt.subplots(1)
 
-        if len(gt_annots) > 0:
-            gt_bboxes = []
-
-            for gt_annot in gt_annots:
-                gt_polygon = show_bbox(gt_annot["bbox"])
-                gt_bboxes.append(gt_polygon)
-
-            annIds = gt.getAnnIds(imgIds=im_id, catIds=[1])
-            anns = gt.loadAnns(annIds)
-            showAnns(gt, anns, gt_color)
-
-            p = PatchCollection(gt_bboxes, alpha=0.3)
-            p.set_facecolor('none')
-            p.set_edgecolor(gt_color)
-            p.set_linewidth(3)
-            ax_masks.add_collection(p)
-
-        if len(pred_annots) > 0:
-            pred_bboxes = []
-
+        if not pred_annots:
+            pass
+        else:
             for pred_annot in pred_annots:
-                pred_polygon = show_bbox(pred_annot["bbox"])
-                ax_masks.annotate("{:.2f}".format(pred_annot['score']), xy=pred_polygon.xy[1], annotation_clip=False,
-                                  color='white')
-                pred_bboxes.append(pred_polygon)
-            if dt_segm is not None:
-                annIds = dt_segm.getAnnIds(imgIds=im_id, catIds=[1])
-                anns = dt_segm.loadAnns(annIds)
-                showAnns(dt_segm, anns, pred_color_tp)
 
-            p = PatchCollection(pred_bboxes, alpha=0.3)
-            p.set_facecolor('none')
-            p.set_edgecolor(pred_color_tp)
-            p.set_linewidth(3)
+                bbox = pred_annot['bbox']
+                center_x, center_y = int(bbox[0] + 0.5 * bbox[2]), int(bbox[1] + 0.5 * bbox[3])
 
-            ax_masks.add_collection(p)
-        print("saving to: ", os.path.join(save_dir, gt.imgs[im_id]['file_name']))
-        # plt.show()
-
-        ax_orig.axis('off')
-        ax_masks.axis('off')
-        plt.tight_layout()
-        plt.savefig(os.path.join(save_dir, gt.imgs[im_id]['file_name']))
-        plt.clf()
-        plt.close()
+                if not mask[center_y, center_x]:
+                    pred_polygon = show_bbox(pred_annot["bbox"], color='r')
+                    file = os.path.join(results_data['images_folder'], gt.imgs.get(im_id)['file_name'])
+                    ax.add_patch(pred_polygon)
+                    im = Image.open(file).convert("HSV")
+                    ax.imshow(im.convert("RGB"))
+                    plt.show()
+                    bbox = [int(a) for a in bbox]
+                    reg = np.array(im)[bbox[1]: bbox[1] + bbox[3],bbox[0]:bbox[0] + bbox[2], :]
+                    print(reg[:,:,1])
+                    print(reg.mean(), reg.std())
+                    plt.imshow(reg)
+                    plt.show()
+                    plt.clf()
 
 
 def show_annotations_giana(gt, save_dir, mask_extension):
@@ -221,14 +201,20 @@ def show_annotations_giana(gt, save_dir, mask_extension):
 
         file = os.path.join(results_data['masks_folder'],
                             gt.imgs.get(im_id)['file_name'].split(".")[0] + mask_extension)
-        mask = plt.imread(file)
+
+        mask = plt.imread(file) if os.path.exists(file) else None
 
         subfolder = None
         fig, ax = plt.subplots(1)
 
         if not pred_annots:
-            if mask.max() > 0:
+            # abscence of mask = no polyp on frame
+            if mask is None:
+                subfolder = "TN"
+            # mask exist and has polyp on it
+            elif mask.max() > 0:
                 subfolder = "FN"
+            # mask exist but is all black
             else:
                 subfolder = "TN"
         else:
@@ -237,7 +223,10 @@ def show_annotations_giana(gt, save_dir, mask_extension):
                 bbox = pred_annot['bbox']
                 center_x, center_y = int(bbox[0] + 0.5 * bbox[2]), int(bbox[1] + 0.5 * bbox[3])
 
-                if mask[center_y, center_x]:
+                if mask is None:
+                    subfolder = "FP"
+                    pred_polygon = show_bbox(pred_annot["bbox"], color='r')
+                elif mask[center_y, center_x]:
                     pred_polygon = show_bbox(pred_annot["bbox"], color='g')
                     subfolder = "TP"
                 else:
@@ -266,7 +255,7 @@ if __name__ == '__main__':
     ap.add_argument("--no_metrics", action='store_false', default=True)
     ap.add_argument("--dataset", type=str)
 
-    experiment = "results/exp_post/3f_post"
+    experiment = "results/tta_video"
 
     data_dict = {
         "test": {
@@ -355,6 +344,7 @@ if __name__ == '__main__':
             os.makedirs(os.path.join(save_dir, "FN"))
             os.makedirs(os.path.join(save_dir, "TN"))
 
+        #false_positive_metrics(gt, save_dir, results_data['mask_extension'])
         show_annotations_giana(gt, save_dir, results_data['mask_extension'])
 
         # save_validation_images(gt, dt_bbox, det_segm, im_ids, save_dir)

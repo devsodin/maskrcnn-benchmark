@@ -177,7 +177,7 @@ def do_giana_eval(folder_detection, folder_localization, folder_gt, root_folder_
     folder_output_localization = os.path.join(root_folder_output, "localization")
     average_detection_output_file = os.path.join(folder_output_detection, "average.csv")
     average_localization_output_file = os.path.join(folder_output_localization, "average.csv")
-    thresholds = [0.2]
+    thresholds = [x / 10 for x in range(10)]
 
     if not os.path.exists(folder_output_detection):
         os.makedirs(folder_output_detection)

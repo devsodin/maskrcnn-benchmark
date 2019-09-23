@@ -212,8 +212,6 @@ class RPNModule(torch.nn.Module):
 
                 new_boxes = self.remove_unexpected_boxes()
 
-
-
         if new_boxes is not None:
             # if self.post_process_methods:
             #     new_boxes = self.remove_saturated(new_boxes,images_orig)

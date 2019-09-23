@@ -1,11 +1,14 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
+import numpy as np
 import torch
+from skimage.color import rgb2hsv, hsv2rgb
 from torch import nn
 
-from .roi_box_feature_extractors import make_roi_box_feature_extractor
-from .roi_box_predictors import make_roi_box_predictor
+from maskrcnn_benchmark.structures.bounding_box import BoxList
 from .inference import make_roi_box_post_processor
 from .loss import make_roi_box_loss_evaluator
+from .roi_box_feature_extractors import make_roi_box_feature_extractor
+from .roi_box_predictors import make_roi_box_predictor
 
 
 class ROIBoxHead(torch.nn.Module):
@@ -21,7 +24,13 @@ class ROIBoxHead(torch.nn.Module):
         self.post_processor = make_roi_box_post_processor(cfg)
         self.loss_evaluator = make_roi_box_loss_evaluator(cfg)
 
-    def forward(self, features, proposals, targets=None):
+        self.custom_post_process = cfg.MODEL.ROI_BOX_HEAD.CUSTOM_POSTPROCESS
+        self.previous_frames_result = []
+        self.num_previous_frames = cfg.MODEL.ROI_BOX_HEAD.PREVIOUS_FRAMES
+        self.previous_frame = None
+        self.count = 0
+
+    def forward(self, features, proposals, orig_images, targets=None):
         """
         Arguments:
             features (list[Tensor]): feature-maps from possibly several levels
@@ -50,6 +59,19 @@ class ROIBoxHead(torch.nn.Module):
 
         if not self.training:
             result = self.post_processor((class_logits, box_regression), proposals)
+
+            if self.custom_post_process:
+                # result = self.remove_saturated(result, orig_images)
+                post_result = remove_saturated_hsv(result, orig_images)
+
+                # if self.previous_frame is None:
+                #     self.previous_frame = result
+                # else:
+                #     post_result = self.last_frame_spatial_coherence(post_result)
+                #     self.previous_frame = result
+
+                result = post_result
+
             return x, result, {}
 
         loss_classifier, loss_box_reg = self.loss_evaluator(
@@ -60,6 +82,207 @@ class ROIBoxHead(torch.nn.Module):
             proposals,
             dict(loss_classifier=loss_classifier, loss_box_reg=loss_box_reg),
         )
+
+    def remove_saturated(self, boxes, images_orig):
+
+        import numpy as np
+        from maskrcnn_benchmark.structures.boxlist_ops import cat_boxlist
+
+        n_boxes = []
+        for boxlist, original in zip(boxes, images_orig):
+            stay = []
+            for box, score in zip(boxlist.bbox, boxlist.get_field("scores")):
+                x = box[0]
+                y = box[1]
+                x_ = box[2]
+                y_ = box[3]
+
+                region = np.array(original)[x.int():x_.int(), y.int():y_.int()]
+                if region.shape[0] <= 0 or region.shape[1] <= 1:
+                    continue
+
+                avg = region.mean()
+                std = region.std()
+
+                # TODO learn threshold
+                if avg <= 240:
+                    new_box = BoxList([[x, y, x_, y_]], boxlist.size, mode="xyxy")
+                    new_box.add_field("scores", torch.unsqueeze(score, -1).cpu())
+                    stay.append(new_box)
+                else:
+                    print("removing_sat bbox")
+
+            if len(stay) > 0:
+                n_boxes.append(cat_boxlist(stay))
+
+        boxes = n_boxes
+        return boxes
+
+    def last_frame_spatial_coherence(self, result):
+        from maskrcnn_benchmark.structures.boxlist_ops import boxlist_iou
+        if len(result) != len(self.previous_frame):
+            assert "different sizes"
+
+        ious = []
+        l2_threshold = 300
+        for res, prev in zip(result, self.previous_frame):
+            ious.append(boxlist_iou(res, prev))
+
+        for idx, iou in zip(range(len(ious)), ious):
+            if iou.nelement():
+                if (iou > 0.4).item():
+                    continue
+                keep_idx = []
+                for res_box, old_box, j in zip(result[idx].bbox, self.previous_frame[idx].bbox,
+                                               range(self.previous_frame[idx].bbox.shape[1])):
+                    # print(res_box, old_box, torch.dist(res_box, old_box).item())
+                    if torch.dist(res_box, old_box).item() < l2_threshold:
+                        keep_idx.append(j)
+
+                result[idx].bbox = result[idx].bbox[keep_idx,:]
+                for field in result[idx].fields():
+                    result[idx].extra_fields[field] = result[idx].get_field(field)[keep_idx]
+
+            else:
+                for res_box, old_box, j in zip(result[idx].bbox, self.previous_frame[idx].bbox,
+                                               range(self.previous_frame[idx].bbox.shape[1])):
+
+                    win = (res_box.get_field("scores") > old_box.get_field("scores")).tolist()
+
+                    win = [i for i, pos in zip(range(len(win)), win) if win > 0]
+                    result[idx].bbox = result[idx].bbox[win]
+                    for field in result[idx].fields():
+                        result[idx].extra_fields[field] = result[idx].get_field(field)[win]
+
+        return result
+
+    """
+    TODO rehacer esto con calma, que me esta costando la vida
+    """
+
+    def remove_unexpected_boxes(self, result):
+        """
+        Method to remove boxes detected on last frame that not appear on the cached frames.
+        :return:
+        """
+        from maskrcnn_benchmark.structures.boxlist_ops import boxlist_iou
+
+        weights = torch.arange(1 / self.num_previous_frames, 1.,
+                               step=1 / self.num_previous_frames)
+
+        votes = torch.zeros([len(result), len(self.previous_frames_result)])
+        for boxlist, i in zip(result, range(len(result))):
+            ious = None
+            for old_boxlist_list, weight, j in zip(self.previous_frames_result, weights,
+                                                   range(len(self.previous_frames_result))):
+                for old_boxlist in old_boxlist_list:
+                    iou = boxlist_iou(boxlist, old_boxlist)
+                    if ious is None:
+                        ious = iou
+                    else:
+                        if iou.nelement():
+                            ious += iou
+
+                ious *= weight
+
+                if ious.nelement():
+                    for i, iou in zip(range(ious.shape[0]), ious):
+                        if iou > 1e-4:
+                            if len(boxlist) > 0:
+                                votes[i, j] += 1
+                        else:
+                            if len(boxlist) > 0:
+                                votes[i, j] -= 1
+                else:
+                    if len(boxlist) > 0:
+                        votes[i, j] -= 1
+
+        # votes
+        votes = votes.sum(dim=1)
+
+        n_result = []
+        for vote, result in zip(votes, result):
+            if vote > 0.5 * self.num_previous_frames:
+                n_result.append(result)
+
+        return n_result
+
+        # match_value = 0 if self.previous_frames_result else None
+        #
+        # for old_boxes, decay in zip(self.previous_frames_result[::-1],
+        #                             torch.arange(start=self.num_previous_frames, end=0, step=-1)):
+        #     result[0].bbox = result[0].bbox.cuda()
+        #     iou = boxlist_iou(result[0], old_boxes[0])
+        #
+        #     if iou.nelement() > 0 and iou.sum().item() > 1e-4:
+        #         match_value += 1
+        #
+        # # TODO refinar, ahora es como siempre. si una cuenta todas ok
+        # print(match_value)
+        # if match_value is not None:
+        #     if match_value > self.num_previous_frames / 2:
+        #         # hay coincidencia con frames anteriores pero no hay ahora
+        #         if len(result[0]) == 0:
+        #             return self.previous_frames_result[-1]
+        #         # hay coincidencia con frames anteriores y hay output ahora
+        #         else:
+        #             return result
+        #     else:
+        #         # no hay coincidencia con frames anteriores y hay respuesta
+        #         if len(result[0]) > 0:
+        #             print("unexpected box")
+        #             t = torch.empty(0, 4)
+        #             new_box = BoxList(t.cuda(), result[0].bbox.size)
+        #             return [new_box]
+        #         else:
+        #             return result
+        # else:
+        #     return result
+
+
+def remove_saturated_hsv(boxes, images_orig):
+
+    for boxlist, original, idx in zip(boxes, images_orig, range(len(boxes))):
+        # if boxlist has bboxes check
+        if len(boxlist) > 0:
+            original = rgb2hsv(np.array(original))
+            save_idx = []
+            for box, i in zip(boxlist.bbox, range(len(boxlist))):
+                x, y, x_, y_ = box[0], box[1], box[2], box[3]
+
+                region = np.array(original)[x.int():x_.int(), y.int():y_.int()]
+                if region.shape[0] <= 0 or region.shape[1] <= 1:
+                    continue
+
+                avg_s = region[:, :, 1].mean() / 255
+                std = region.std()
+                avg_v = region[:, :, 2].mean()
+
+                # TODO learn threshold
+                if avg_v >= 0.9 and avg_s <= 0.1:
+                    print("removing sat bbox", std)
+                    # _plot_region(region)
+                elif avg_v < 0.1:
+                    print("removing very obscured bbox", std)
+                    # _plot_region(region)
+                else:
+                    save_idx.append(i)
+
+            boxes[idx].bbox = boxlist.bbox[save_idx]
+
+            for field in boxlist.fields():
+                boxes[idx].extra_fields[field] = boxlist.get_field(field)[save_idx]
+        else:
+            continue
+
+    return boxes
+
+def _plot_region(region):
+    from matplotlib import pyplot as plt
+
+    region = hsv2rgb(region)
+    plt.imshow(region)
+    plt.show()
 
 
 def build_roi_box_head(cfg, in_channels):
