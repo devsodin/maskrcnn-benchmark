@@ -1,7 +1,7 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
 import numpy as np
 import torch
-from skimage.color import rgb2hsv, hsv2rgb
+from skimage.color import rgb2hsv, hsv2rgb, rgb2ycbcr, ycbcr2rgb
 from torch import nn
 
 from maskrcnn_benchmark.structures.bounding_box import BoxList
@@ -24,10 +24,13 @@ class ROIBoxHead(torch.nn.Module):
         self.post_processor = make_roi_box_post_processor(cfg)
         self.loss_evaluator = make_roi_box_loss_evaluator(cfg)
 
+        self.ohem = cfg.MODEL.ROI_HEADS.OHEM
+
         self.custom_post_process = cfg.MODEL.ROI_BOX_HEAD.CUSTOM_POSTPROCESS
         self.previous_frames_result = []
         self.num_previous_frames = cfg.MODEL.ROI_BOX_HEAD.PREVIOUS_FRAMES
         self.previous_frame = None
+        self.frames_cached = []
         self.count = 0
 
     def forward(self, features, proposals, orig_images, targets=None):
@@ -51,6 +54,13 @@ class ROIBoxHead(torch.nn.Module):
             with torch.no_grad():
                 proposals = self.loss_evaluator.subsample(proposals, targets)
 
+                if self.ohem:
+                    x = self.feature_extractor(features, proposals)
+                    class_logits, box_regression = self.predictor(x)
+                    proposals = self.loss_evaluator.mining(
+                        [class_logits], [box_regression]
+                    )
+
         # extract features that will be fed to the final classifier. The
         # feature_extractor generally corresponds to the pooler + heads
         x = self.feature_extractor(features, proposals)
@@ -61,14 +71,14 @@ class ROIBoxHead(torch.nn.Module):
             result = self.post_processor((class_logits, box_regression), proposals)
 
             if self.custom_post_process:
-                # result = self.remove_saturated(result, orig_images)
-                post_result = remove_saturated_hsv(result, orig_images)
+                # post_result = remove_saturated_hsv(result, orig_images)
+                post_result = remove_saturated_ycbcr(result, orig_images)
 
-                # if self.previous_frame is None:
-                #     self.previous_frame = result
-                # else:
-                #     post_result = self.last_frame_spatial_coherence(post_result)
-                #     self.previous_frame = result
+                if self.previous_frame is None:
+                    self.previous_frame = result
+                else:
+                    # post_result = self.last_frame_spatial_coherence(post_result)
+                    self.previous_frame = result
 
                 result = post_result
 
@@ -83,67 +93,47 @@ class ROIBoxHead(torch.nn.Module):
             dict(loss_classifier=loss_classifier, loss_box_reg=loss_box_reg),
         )
 
-    def remove_saturated(self, boxes, images_orig):
-
-        import numpy as np
-        from maskrcnn_benchmark.structures.boxlist_ops import cat_boxlist
-
-        n_boxes = []
-        for boxlist, original in zip(boxes, images_orig):
-            stay = []
-            for box, score in zip(boxlist.bbox, boxlist.get_field("scores")):
-                x = box[0]
-                y = box[1]
-                x_ = box[2]
-                y_ = box[3]
-
-                region = np.array(original)[x.int():x_.int(), y.int():y_.int()]
-                if region.shape[0] <= 0 or region.shape[1] <= 1:
-                    continue
-
-                avg = region.mean()
-                std = region.std()
-
-                # TODO learn threshold
-                if avg <= 240:
-                    new_box = BoxList([[x, y, x_, y_]], boxlist.size, mode="xyxy")
-                    new_box.add_field("scores", torch.unsqueeze(score, -1).cpu())
-                    stay.append(new_box)
-                else:
-                    print("removing_sat bbox")
-
-            if len(stay) > 0:
-                n_boxes.append(cat_boxlist(stay))
-
-        boxes = n_boxes
-        return boxes
-
     def last_frame_spatial_coherence(self, result):
         from maskrcnn_benchmark.structures.boxlist_ops import boxlist_iou
+
+        ious = []
+        displacement_percent = 0.05
+        iou_threshold = 0.6
+
         if len(result) != len(self.previous_frame):
             assert "different sizes"
 
-        ious = []
-        l2_threshold = 300
+        # calculate ious between new and old frame
         for res, prev in zip(result, self.previous_frame):
             ious.append(boxlist_iou(res, prev))
 
         for idx, iou in zip(range(len(ious)), ious):
             if iou.nelement():
-                if (iou > 0.4).item():
+                if (iou > iou_threshold).item():
                     continue
-                keep_idx = []
-                for res_box, old_box, j in zip(result[idx].bbox, self.previous_frame[idx].bbox,
-                                               range(self.previous_frame[idx].bbox.shape[1])):
-                    # print(res_box, old_box, torch.dist(res_box, old_box).item())
-                    if torch.dist(res_box, old_box).item() < l2_threshold:
-                        keep_idx.append(j)
+                else:
+                    # on low intersection value, check if box has changed size a lot
+                    keep_idx = []
 
-                result[idx].bbox = result[idx].bbox[keep_idx,:]
-                for field in result[idx].fields():
-                    result[idx].extra_fields[field] = result[idx].get_field(field)[keep_idx]
+                    for res_box, old_box, j in zip(result[idx].bbox, self.previous_frame[idx].bbox,
+                                                   range(self.previous_frame[idx].bbox.shape[1])):
 
+                        im_size = result[idx].size
+                        max_tol = (torch.Tensor([im_size[0], im_size[1]]) * displacement_percent).to(res_box.device)
+
+                        # print(res_box, old_box, torch.dist(res_box, old_box).item())
+                        if (res_box - old_box)[:2].norm() < max_tol.norm():
+                            keep_idx.append(j)
+                        else:
+                            print("reeeemove")
+
+                    result[idx].bbox = result[idx].bbox[keep_idx,:]
+                    for field in result[idx].fields():
+                        result[idx].extra_fields[field] = result[idx].get_field(field)[keep_idx]
+
+            # bbox with no intersection
             else:
+                # save bbox with highest score, asuming the other is FP
                 for res_box, old_box, j in zip(result[idx].bbox, self.previous_frame[idx].bbox,
                                                range(self.previous_frame[idx].bbox.shape[1])):
 
@@ -238,6 +228,38 @@ class ROIBoxHead(torch.nn.Module):
         #             return result
         # else:
         #     return result
+
+def remove_saturated_ycbcr(boxes, images_orig):
+
+    for boxlist, original, idx in zip(boxes, images_orig, range(len(boxes))):
+        # if boxlist has bboxes check
+        if len(boxlist) > 0:
+            original = rgb2ycbcr(np.array(original))
+            save_idx = []
+            for box, i in zip(boxlist.bbox, range(len(boxlist))):
+                x, y, x_, y_ = box[0], box[1], box[2], box[3]
+
+                region = np.array(original)[x.int():x_.int(), y.int():y_.int()]
+                if region.shape[0] <= 0 or region.shape[1] <= 1:
+                    continue
+
+                avg_y = region[:, :, 0].mean()
+                std_y = region[:,:, 0].std()
+                max_y = region[:,:, 0].max()
+
+                if avg_y + std_y > 200 and max_y > 240:
+                    print("removing sat zone - max {}, avg {}".format(max_y, avg_y))
+                else:
+                    save_idx.append(i)
+
+            boxes[idx].bbox = boxlist.bbox[save_idx]
+
+            for field in boxlist.fields():
+                boxes[idx].extra_fields[field] = boxlist.get_field(field)[save_idx]
+        else:
+            continue
+
+    return boxes
 
 
 def remove_saturated_hsv(boxes, images_orig):

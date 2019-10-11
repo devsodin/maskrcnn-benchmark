@@ -48,6 +48,22 @@ def remove_small_boxes(boxlist, min_size):
     return boxlist[keep]
 
 
+def remove_big_boxes(boxlist, max_size):
+    """
+    Only keep boxes with both sides >= min_size
+
+    Arguments:
+        boxlist (Boxlist)
+        min_size (int)
+    """
+    # TODO maybe add an API for querying the ws / hs
+    xywh_boxes = boxlist.convert("xywh").bbox
+    _, _, ws, hs = xywh_boxes.unbind(dim=1)
+    keep = (
+        (ws <= max_size) & (hs <= max_size)
+    ).nonzero().squeeze(1)
+    return boxlist[keep]
+
 # implementation from https://github.com/kuangliu/torchcv/blob/master/torchcv/utils/box.py
 # with slight modifications
 def boxlist_iou(boxlist1, boxlist2):

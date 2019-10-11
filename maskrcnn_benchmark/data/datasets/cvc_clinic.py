@@ -8,8 +8,18 @@ from maskrcnn_benchmark.structures.bounding_box import BoxList
 from maskrcnn_benchmark.structures.segmentation_mask import SegmentationMask
 
 
+def _has_only_empty_bbox(anno):
+    return all(any(o <= 1 for o in obj["bbox"][2:]) for obj in anno)
+
+
+def has_valid_annotation(anno):
+    # if it's empty, there is no annotation
+    if len(anno) == 0:
+        return False
+    return False
+
 class CVCClinicDataset(CocoDetection):
-    def __init__(self, annotation_file, root, name, transforms=None):
+    def __init__(self, annotation_file, root, remove_images_without_annotations, name, transforms=None):
         super(CVCClinicDataset, self).__init__(root, annotation_file)
         self.root = root
         self.name = name
@@ -82,7 +92,7 @@ if __name__ == '__main__':
                             "../../../datasets/CVC-classification/images", False, None)
     print(test[0])
 
-    batch = test[1152]
+    batch = test[532]
 
     print(batch)
     import numpy as np
@@ -91,3 +101,10 @@ if __name__ == '__main__':
     plt.imshow(batch[3])
     print(np.array(batch[3]).std())
     plt.show()
+
+    a = np.array(batch[3].convert("YCbCr"))[:,:,0]
+    plt.imshow(a)
+    plt.title("YCbCr- Y")
+    plt.show()
+
+    print("aaa")

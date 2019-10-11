@@ -113,7 +113,7 @@ class RPNModule(torch.nn.Module):
     proposals and losses. Works for both FPN and non-FPN.
     """
 
-    def __init__(self, cfg, in_channels, custom_postprocess=False):
+    def __init__(self, cfg, in_channels):
         super(RPNModule, self).__init__()
 
         self.cfg = cfg.clone()
@@ -137,10 +137,6 @@ class RPNModule(torch.nn.Module):
         self.box_selector_train = box_selector_train
         self.box_selector_test = box_selector_test
         self.loss_evaluator = loss_evaluator
-
-        self.previous_boxes = []
-        self.max_cache_boxes = 3
-        self.post_process_methods = custom_postprocess
 
     def forward(self, images, features, original, targets=None):
         """
@@ -192,7 +188,6 @@ class RPNModule(torch.nn.Module):
 
         boxes = self.box_selector_test(anchors, objectness, rpn_box_regression)
 
-        new_boxes = None
         if self.cfg.MODEL.RPN_ONLY:
             # For end-to-end models, the RPN proposals are an intermediate state
             # and don't bother to sort them in decreasing score order. For RPN-only
@@ -202,105 +197,7 @@ class RPNModule(torch.nn.Module):
                 box.get_field("objectness").sort(descending=True)[1] for box in boxes
             ]
             boxes = [box[ind] for box, ind in zip(boxes, inds)]
-
-        if self.post_process_methods:
-            if len(self.previous_boxes) < self.max_cache_boxes:
-                self.previous_boxes.append(boxes)
-            else:
-                self.previous_boxes.append(boxes)
-                self.previous_boxes = self.previous_boxes[1:]
-
-                new_boxes = self.remove_unexpected_boxes()
-
-        if new_boxes is not None:
-            # if self.post_process_methods:
-            #     new_boxes = self.remove_saturated(new_boxes,images_orig)
-            return new_boxes, {}
-        else:
-            return boxes, {}
-
-    def remove_unexpected_boxes(self):
-        """
-        Method to remove boxes detected on last frame that not appear on the last 5 detections.
-        :return:
-        """
-        # last_frame_stay = BoxList([],self.previous_boxes[-1][0].bbox.size)
-        stay = None
-        last_frame_bboxes = self.previous_boxes[-1]
-        # last_frame_scores = self.previous_boxes[-1].get_field("objectness")
-
-        all_invalid = True
-        # list of bbox in last frame
-        for bbox in last_frame_bboxes:
-            for boxes in bbox.bbox:
-
-                for old_frame in reversed(self.previous_boxes[:-1]):
-                    for old_bbox in old_frame:
-                        for old_box in old_bbox.bbox:
-                            i_xmin = torch.max(boxes[0], old_box[0])
-                            i_ymin = torch.max(boxes[1], old_box[1])
-                            i_xmax = torch.max(boxes[2], old_box[2])
-                            i_ymax = torch.max(boxes[3], old_box[3])
-
-                            if i_xmax > i_xmin and i_ymin > i_ymax:
-                                all_invalid = False
-                                if stay is None:
-                                    stay = boxes
-                                    stay = torch.unsqueeze(stay, dim=-1)
-                                else:
-                                    add = torch.unsqueeze(boxes, dim=-1)
-                                    stay = torch.cat((stay, add), dim=1)
-
-        if not all_invalid:
-            stay_tensor = torch.as_tensor(stay, dtype=torch.float32, device="cuda")
-            return BoxList(stay_tensor, self.previous_boxes[-1][0].bbox.size, mode="xyxy")
-        else:
-            return None
-
-    def remove_saturated(self, boxes, images_orig):
-
-        import numpy as np
-
-        n_boxes = []
-        for bboxlist, original in zip(boxes, images_orig):
-            bboxlist.clip_to_image()
-            stay = []
-            for bbox in bboxlist.bbox:
-                # print(bbox)
-                x = bbox[0]
-                y = bbox[1]
-                x_ = bbox[2]
-                y_ = bbox[3]
-
-                # print(x, y, x_, y_)
-
-                # print(T.ToTensor()(original))
-                # print(T.ToTensor()(original).shape)
-                region = np.array(original)[x.int():x_.int(), y.int():y_.int()]
-                if region.shape[0] <= 0 or region.shape[1] <= 1:
-                    continue
-                # print(region.shape)
-                # print(region.dtype)
-                avg = region.mean()
-                std = region.std()
-
-                # print(avg, std)
-                # plt.imshow(T.ToPILImage()(region))
-                # plt.show()
-
-                # TODO learn threshold
-                if avg <= 220:
-                    print("removing_sat bbox")
-                    stay.append([x, y, x_, y_])
-                # else:
-                #     plt.imshow(original)
-                #     plt.show()
-                #     plt.imshow(region)
-                #     plt.show()
-            stay_tensor = torch.as_tensor(stay, dtype=torch.float32, device="cuda")
-            n_boxes.append(BoxList(stay_tensor, bboxlist.size, mode="xyxy"))
-        boxes = n_boxes
-        return boxes
+        return boxes, {}
 
 
 def build_rpn(cfg, in_channels):
@@ -310,4 +207,4 @@ def build_rpn(cfg, in_channels):
     if cfg.MODEL.RETINANET_ON:
         return build_retinanet(cfg, in_channels)
 
-    return RPNModule(cfg, in_channels, cfg.MODEL.RPN.CUSTOM_POSTPROCESS)
+    return RPNModule(cfg, in_channels)

@@ -23,7 +23,7 @@ class PostProcessor(nn.Module):
             detections_per_img=100,
             box_coder=None,
             cls_agnostic_bbox_reg=False,
-            bbox_aug_enabled=False
+            bbox_aug_enabled=False,
     ):
         """
         Arguments:

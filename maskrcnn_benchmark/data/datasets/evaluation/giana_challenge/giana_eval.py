@@ -329,3 +329,16 @@ def generate_results_per_video(videos, confidences, thresholds, gt, plot_folder)
         detect_dict[threshold] = res_detection
         local_dict[threshold] = res_localization
     return detect_dict, local_dict
+
+
+if __name__ == '__main__':
+    output_folder = "results/video_ohem_process_roi/inference/cvc-clinic-test/"
+    dataset_root_folder = "datasets/cvcvideoclinicdbtest"
+    dataset_ann = dataset_root_folder + "/annotations/test_only_polyp.json"
+    folder_detection = os.path.join(output_folder, "detection")
+    folder_localization = os.path.join(output_folder, "localization")
+    giana_results_folder = os.path.join(output_folder, "giana_results")
+    folder_gt = os.path.join(dataset_root_folder, "masks")
+    do_giana_eval(output_folder, folder_detection, folder_localization, folder_gt, giana_results_folder,
+                  dataset_ann, "cvc-clinic-test")
+

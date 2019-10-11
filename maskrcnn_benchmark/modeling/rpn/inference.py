@@ -5,7 +5,7 @@ from maskrcnn_benchmark.modeling.box_coder import BoxCoder
 from maskrcnn_benchmark.structures.bounding_box import BoxList
 from maskrcnn_benchmark.structures.boxlist_ops import cat_boxlist
 from maskrcnn_benchmark.structures.boxlist_ops import boxlist_nms
-from maskrcnn_benchmark.structures.boxlist_ops import remove_small_boxes
+from maskrcnn_benchmark.structures.boxlist_ops import remove_small_boxes, remove_big_boxes
 
 from ..utils import cat
 from .utils import permute_and_flatten
@@ -25,6 +25,7 @@ class RPNPostProcessor(torch.nn.Module):
         box_coder=None,
         fpn_post_nms_top_n=None,
         fpn_post_nms_per_batch=True,
+        max_size=None
     ):
         """
         Arguments:
@@ -40,6 +41,7 @@ class RPNPostProcessor(torch.nn.Module):
         self.post_nms_top_n = post_nms_top_n
         self.nms_thresh = nms_thresh
         self.min_size = min_size
+        self.max_size = max_size
 
         if box_coder is None:
             box_coder = BoxCoder(weights=(1.0, 1.0, 1.0, 1.0))
@@ -113,6 +115,8 @@ class RPNPostProcessor(torch.nn.Module):
             boxlist.add_field("objectness", score)
             boxlist = boxlist.clip_to_image(remove_empty=False)
             boxlist = remove_small_boxes(boxlist, self.min_size)
+            if self.max_size is not None:
+                boxlist = remove_big_boxes(boxlist, self.max_size)
             boxlist = boxlist_nms(
                 boxlist,
                 self.nms_thresh,
@@ -196,6 +200,7 @@ def make_rpn_postprocessor(config, rpn_box_coder, is_train):
     fpn_post_nms_per_batch = config.MODEL.RPN.FPN_POST_NMS_PER_BATCH
     nms_thresh = config.MODEL.RPN.NMS_THRESH
     min_size = config.MODEL.RPN.MIN_SIZE
+    max_size = config.MODEL.RPN.MAX_SIZE
     box_selector = RPNPostProcessor(
         pre_nms_top_n=pre_nms_top_n,
         post_nms_top_n=post_nms_top_n,
@@ -204,5 +209,6 @@ def make_rpn_postprocessor(config, rpn_box_coder, is_train):
         box_coder=rpn_box_coder,
         fpn_post_nms_top_n=fpn_post_nms_top_n,
         fpn_post_nms_per_batch=fpn_post_nms_per_batch,
+        max_size=max_size
     )
     return box_selector
