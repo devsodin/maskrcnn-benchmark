@@ -16,7 +16,10 @@ def has_valid_annotation(anno):
     # if it's empty, there is no annotation
     if len(anno) == 0:
         return False
-    return False
+    if _has_only_empty_bbox(anno):
+        return False
+    return True
+
 
 class CVCClinicDataset(CocoDetection):
     def __init__(self, annotation_file, root, remove_images_without_annotations, name, transforms=None):
@@ -31,6 +34,15 @@ class CVCClinicDataset(CocoDetection):
             for k, fn in self.coco.imgs.items():
                 if fn['file_name'] == f:
                     self.ids.append(k)
+
+        if remove_images_without_annotations:
+            ids = []
+            for img_id in self.ids:
+                ann_ids = self.coco.getAnnIds(imgIds=img_id, iscrowd=None)
+                anno = self.coco.loadAnns(ann_ids)
+                if has_valid_annotation(anno):
+                    ids.append(img_id)
+            self.ids = ids
 
         self.categories = {cat['id']: cat['name'] for cat in self.coco.cats.values()}
 

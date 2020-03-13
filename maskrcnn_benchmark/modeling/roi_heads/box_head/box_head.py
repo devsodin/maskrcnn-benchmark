@@ -1,7 +1,7 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
 import numpy as np
 import torch
-from skimage.color import rgb2hsv, hsv2rgb, rgb2ycbcr, ycbcr2rgb
+from skimage.color import rgb2hsv, hsv2rgb, rgb2ycbcr
 from torch import nn
 
 from maskrcnn_benchmark.structures.bounding_box import BoxList
@@ -27,6 +27,9 @@ class ROIBoxHead(torch.nn.Module):
         self.ohem = cfg.MODEL.ROI_HEADS.OHEM
 
         self.custom_post_process = cfg.MODEL.ROI_BOX_HEAD.CUSTOM_POSTPROCESS
+        self.process_saturated = cfg.MODEL.ROI_BOX_HEAD.PROCESS_SATURATED
+        self.process_coherence = cfg.MODEL.ROI_BOX_HEAD.PROCESS_COHERENCE
+        self.process_dark = cfg.MODEL.ROI_BOX_HEAD.PROCESS_DARK
         self.previous_frames_result = []
         self.num_previous_frames = cfg.MODEL.ROI_BOX_HEAD.PREVIOUS_FRAMES
         self.previous_frame = None
@@ -71,16 +74,16 @@ class ROIBoxHead(torch.nn.Module):
             result = self.post_processor((class_logits, box_regression), proposals)
 
             if self.custom_post_process:
-                # post_result = remove_saturated_hsv(result, orig_images)
-                post_result = remove_saturated_ycbcr(result, orig_images)
-
-                if self.previous_frame is None:
-                    self.previous_frame = result
-                else:
-                    # post_result = self.last_frame_spatial_coherence(post_result)
-                    self.previous_frame = result
-
-                result = post_result
+                if self.process_saturated or self.process_dark:
+                    result = remove_saturated_hsv(result, orig_images, self.process_saturated, self.process_dark)
+                    # post_result = remove_saturated_ycbcr(result, orig_images)
+                if self.process_coherence:
+                    if self.previous_frame is None:
+                        self.previous_frame = result
+                    else:
+                        post_result = self.last_frame_spatial_coherence(result)
+                        self.previous_frame = result
+                        result = post_result
 
             return x, result, {}
 
@@ -93,6 +96,8 @@ class ROIBoxHead(torch.nn.Module):
             dict(loss_classifier=loss_classifier, loss_box_reg=loss_box_reg),
         )
 
+    # TODO improve method to calculate ious by matrix, not one by one.
+    # limited to dectections = 1
     def last_frame_spatial_coherence(self, result):
         from maskrcnn_benchmark.structures.boxlist_ops import boxlist_iou
 
@@ -109,7 +114,7 @@ class ROIBoxHead(torch.nn.Module):
 
         for idx, iou in zip(range(len(ious)), ious):
             if iou.nelement():
-                if (iou > iou_threshold).item():
+                if (iou >= iou_threshold).item():
                     continue
                 else:
                     # on low intersection value, check if box has changed size a lot
@@ -127,7 +132,7 @@ class ROIBoxHead(torch.nn.Module):
                         else:
                             print("reeeemove")
 
-                    result[idx].bbox = result[idx].bbox[keep_idx,:]
+                    result[idx].bbox = result[idx].bbox[keep_idx, :]
                     for field in result[idx].fields():
                         result[idx].extra_fields[field] = result[idx].get_field(field)[keep_idx]
 
@@ -155,10 +160,19 @@ class ROIBoxHead(torch.nn.Module):
         Method to remove boxes detected on last frame that not appear on the cached frames.
         :return:
         """
+
         from maskrcnn_benchmark.structures.boxlist_ops import boxlist_iou
 
-        weights = torch.arange(1 / self.num_previous_frames, 1.,
-                               step=1 / self.num_previous_frames)
+        previous_frames = []
+
+        decay = np.arange(1, 0, -1 / (len(previous_frames) + 1))[1:]
+
+        for boxlist, i in zip(result, range(len(result))):
+            ious = torch.Tensor([])
+            for boxlist, i, decay in zip(previous_frames, range(previous_frames), decay):
+                pass
+
+
 
         votes = torch.zeros([len(result), len(self.previous_frames_result)])
         for boxlist, i in zip(result, range(len(result))):
@@ -229,8 +243,8 @@ class ROIBoxHead(torch.nn.Module):
         # else:
         #     return result
 
-def remove_saturated_ycbcr(boxes, images_orig):
 
+def remove_saturated_ycbcr(boxes, images_orig):
     for boxlist, original, idx in zip(boxes, images_orig, range(len(boxes))):
         # if boxlist has bboxes check
         if len(boxlist) > 0:
@@ -244,8 +258,8 @@ def remove_saturated_ycbcr(boxes, images_orig):
                     continue
 
                 avg_y = region[:, :, 0].mean()
-                std_y = region[:,:, 0].std()
-                max_y = region[:,:, 0].max()
+                std_y = region[:, :, 0].std()
+                max_y = region[:, :, 0].max()
 
                 if avg_y + std_y > 200 and max_y > 240:
                     print("removing sat zone - max {}, avg {}".format(max_y, avg_y))
@@ -262,8 +276,7 @@ def remove_saturated_ycbcr(boxes, images_orig):
     return boxes
 
 
-def remove_saturated_hsv(boxes, images_orig):
-
+def remove_saturated_hsv(boxes, images_orig, sat, dark):
     for boxlist, original, idx in zip(boxes, images_orig, range(len(boxes))):
         # if boxlist has bboxes check
         if len(boxlist) > 0:
@@ -281,10 +294,10 @@ def remove_saturated_hsv(boxes, images_orig):
                 avg_v = region[:, :, 2].mean()
 
                 # TODO learn threshold
-                if avg_v >= 0.9 and avg_s <= 0.1:
+                if avg_v >= 0.9 and avg_s <= 0.1 and sat:
                     print("removing sat bbox", std)
                     # _plot_region(region)
-                elif avg_v < 0.1:
+                elif avg_v < 0.1 and dark:
                     print("removing very obscured bbox", std)
                     # _plot_region(region)
                 else:
@@ -298,6 +311,7 @@ def remove_saturated_hsv(boxes, images_orig):
             continue
 
     return boxes
+
 
 def _plot_region(region):
     from matplotlib import pyplot as plt

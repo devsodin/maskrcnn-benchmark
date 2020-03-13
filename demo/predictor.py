@@ -362,12 +362,12 @@ class COCODemo(object):
         masks = masks[:max_masks]
         # handle case where we have less detections than max_masks
         if len(masks) < max_masks:
-            masks_padded = torch.zeros(max_masks, 1, height, width, dtype=torch.uint8)
+            masks_padded = torch.zeros(max_masks, 1, height, width, dtype=torch.bool)
             masks_padded[: len(masks)] = masks
             masks = masks_padded
         masks = masks.reshape(masks_per_dim, masks_per_dim, height, width)
         result = torch.zeros(
-            (masks_per_dim * height, masks_per_dim * width), dtype=torch.uint8
+            (masks_per_dim * height, masks_per_dim * width), dtype=torch.bool
         )
         for y in range(masks_per_dim):
             start_y = y * height

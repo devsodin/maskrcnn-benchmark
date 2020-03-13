@@ -114,7 +114,7 @@ def do_giana_eval(results_folder, folder_detection, folder_localization, folder_
         raise ("invalid  giana dataset evaluation")
 
     # predictions
-    dt_bbox = gt.loadRes(os.path.join(results_folder, "bbox.json"))
+    dt_bbox = gt.loadRes(os.path.join(results_folder, "coco_instances_results.json"))
     calc_challenge_metrics(localization_df, detection_df, dt_bbox, results_folder, dataset)
     logger.info("Metrics calculated (GIANA Challenge)")
 
@@ -208,8 +208,8 @@ def save_detection_plot(output_folder, threshold, vid_folder, video_gt, video_pr
 
 
 def process_video_for_detection(file, has_confidence, thresh, vid_folder, plot_folder):
-    video_len = len(os.listdir(vid_folder)) +1
-    #len(set([im.split("_Polyp")[0] for im in os.listdir(vid_folder)])) + 1
+    video_len = len(os.listdir(vid_folder)) + 1
+    # len(set([im.split("_Polyp")[0] for im in os.listdir(vid_folder)])) + 1
     video_gt = np.zeros((video_len, 1))
     video_pred = np.zeros((video_len, 1))
 
@@ -252,7 +252,7 @@ def process_video_for_detection(file, has_confidence, thresh, vid_folder, plot_f
 
             video_pred[polyp_n] += 1
 
-    save_detection_plot(plot_folder, thresh, vid_folder,video_gt, video_pred)
+    save_detection_plot(plot_folder, thresh, vid_folder, video_gt, video_pred)
     rt = first_detected_polyp - first_polyp if first_detected_polyp != -1 else -1
 
     return [tp, fp, fn, tn, rt], video_gt, video_pred
@@ -332,13 +332,16 @@ def generate_results_per_video(videos, confidences, thresholds, gt, plot_folder)
 
 
 if __name__ == '__main__':
-    output_folder = "results/video_ohem_process_roi/inference/cvc-clinic-test/"
+    output_folder = "/home/yael/"
     dataset_root_folder = "datasets/cvcvideoclinicdbtest"
-    dataset_ann = dataset_root_folder + "/annotations/test_only_polyp.json"
+    dataset_ann = dataset_root_folder + "/annotations/test.json"
     folder_detection = os.path.join(output_folder, "detection")
     folder_localization = os.path.join(output_folder, "localization")
     giana_results_folder = os.path.join(output_folder, "giana_results")
     folder_gt = os.path.join(dataset_root_folder, "masks")
+    import time
+    t = time.time()
     do_giana_eval(output_folder, folder_detection, folder_localization, folder_gt, giana_results_folder,
                   dataset_ann, "cvc-clinic-test")
 
+    print("old", time.time() - t)

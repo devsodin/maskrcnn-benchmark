@@ -50,7 +50,7 @@ def remove_small_boxes(boxlist, min_size):
 
 def remove_big_boxes(boxlist, max_size):
     """
-    Only keep boxes with both sides >= min_size
+    Only keep boxes with both sides >= max_size
 
     Arguments:
         boxlist (Boxlist)
@@ -59,9 +59,15 @@ def remove_big_boxes(boxlist, max_size):
     # TODO maybe add an API for querying the ws / hs
     xywh_boxes = boxlist.convert("xywh").bbox
     _, _, ws, hs = xywh_boxes.unbind(dim=1)
-    keep = (
-        (ws <= max_size) & (hs <= max_size)
-    ).nonzero().squeeze(1)
+
+    if type(max_size) is tuple:
+        keep = (
+                (ws <= max_size[0]) & (hs <= max_size[1])
+        ).nonzero().squeeze(1)
+    else:
+        keep = (
+            (ws <= max_size) & (hs <= max_size)
+        ).nonzero().squeeze(1)
     return boxlist[keep]
 
 # implementation from https://github.com/kuangliu/torchcv/blob/master/torchcv/utils/box.py

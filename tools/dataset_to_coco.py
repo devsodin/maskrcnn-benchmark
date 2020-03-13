@@ -9,7 +9,7 @@ import pandas as pd
 from PIL import Image
 from matplotlib import pyplot as plt
 from pycocotools import mask
-from scipy.misc import imsave
+from imageio import imsave
 from scipy.ndimage import label
 
 ROOT_DIR_CVC_TRAIN_VAL = "../datasets/CVC-VideoClinicDBtrain_valid"
@@ -79,11 +79,11 @@ CATEGORIES = [
         'supercategory': 'polyp',
     },
 
-    {
-        'id': 2,
-        'name': 'Specular',
-        'supercategory': 'other',
-    },
+    # {
+    #     'id': 2,
+    #     'name': 'Specular',
+    #     'supercategory': 'other',
+    # },
 ]
 
 
@@ -207,10 +207,13 @@ def dataset_to_coco(root_folder: str, info, licenses, categories, seqs: list or 
         im = Image.open(im_file)
 
         im_info = get_image_coco_info(image_id, os.path.basename(file), im.size)
-        coco_output["images"].append(im_info)
+        add_image = False
 
         # if dataset or image have zero masks, return empty list
         masks = get_mask_images(masks_folder, file)
+        if masks:
+            coco_output["images"].append(im_info)
+            add_image = True
 
         for mask in masks:
             mask_file = os.path.join(masks_folder, mask)
@@ -228,7 +231,7 @@ def dataset_to_coco(root_folder: str, info, licenses, categories, seqs: list or 
 
             segmentation_id = segmentation_id + 1
 
-        image_id = image_id + 1
+        image_id = image_id + 1 if add_image else image_id
 
     with open(os.path.join(root_folder, "annotations", out_name), "w") as f:
         json.dump(coco_output, f)
@@ -357,25 +360,26 @@ if __name__ == '__main__':
     train_seq = ["{:03d}".format(x) for x in [1, 7 ,11, 12, 18]]
     val_seq = ["{:03d}".format(x) for x in [5, 15, 16]]
 
-
+    train_seq = ["{:03d}".format(x) for x in range(1,16)]
+    val_seq = ["{:03d}".format(x) for x in (16,19)]
 
     # dataset_to_coco(ROOT_DIR_CVC_TRAIN_VAL, INFO_CVC, LICENSES, CATEGORIES, train_seq, "train.json",
     #                 has_annotations=True)
     #
     # dataset_to_coco(ROOT_DIR_CVC_TRAIN_VAL, INFO_CVC, LICENSES, CATEGORIES, val_seq, "val.json",
     #                 has_annotations=True)
-
+    #
     # dataset_to_coco(ROOT_DIR_CVC_TEST, INFO_CVC, LICENSES, CATEGORIES, None, "test.json",
     #                 has_annotations=False)
-    #
-    # dataset_to_coco(ROOT_DIR_CVC_CLASSIFICATION, INFO_CVC, LICENSES, CATEGORIES, None, "train.json",
-    #                 has_annotations=True)
-    #
-    # dataset_to_coco(ROOT_DIR_ETIS, INFO_ETIS, LICENSES, CATEGORIES, None, "train.json",
-    #                 has_annotations=True)
-    #
-    # dataset_to_coco(ROOT_DIR_CVC_300, INFO_CVC, LICENSES, CATEGORIES, None, "train.json",
-    #                 has_annotations=True)
-    #
-    # dataset_to_coco(ROOT_DIR_CVC_612, INFO_CVC, LICENSES, CATEGORIES, None, "train.json",
-    #                 has_annotations=True)
+
+    dataset_to_coco(ROOT_DIR_CVC_CLASSIFICATION, INFO_CVC, LICENSES, CATEGORIES, None, "train.json",
+                    has_annotations=True)
+
+    dataset_to_coco(ROOT_DIR_ETIS, INFO_ETIS, LICENSES, CATEGORIES, None, "train.json",
+                    has_annotations=True)
+
+    dataset_to_coco(ROOT_DIR_CVC_300, INFO_CVC, LICENSES, CATEGORIES, None, "train.json",
+                    has_annotations=True)
+
+    dataset_to_coco(ROOT_DIR_CVC_612, INFO_CVC, LICENSES, CATEGORIES, None, "train.json",
+                    has_annotations=True)

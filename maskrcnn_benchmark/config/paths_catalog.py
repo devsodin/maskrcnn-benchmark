@@ -115,7 +115,7 @@ class DatasetCatalog(object):
         },
         "cvc-clinic-val": {
             "data_dir": "CVC-VideoClinicDBtrain_valid/images",
-            "ann_file": "CVC-VideoClinicDBtrain_valid/annotations/val.json",
+            "ann_file": "CVC-VideoClinicDBtrain_valid/annotations/valid.json",
             "name": "cvc-clinic-val"
         },
         "cvc-clinic-test": {

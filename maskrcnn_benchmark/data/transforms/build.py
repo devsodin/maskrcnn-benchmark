@@ -16,6 +16,14 @@ def build_transforms(cfg, is_train=True):
         gaussian_blur_kernel = cfg.INPUT.BLUR_KERNEL_SIZE
         gaussian_noise_prob = cfg.INPUT.PROB_GAUSSIAN_NOISE
         gaussian_noise_sigma = cfg.INPUT.SIGMA_GAUSSIAN_NOISE
+        affine_transform_prob = cfg.INPUT.PROB_AFFINE
+        affine_shear = cfg.INPUT.SHEAR
+        affine_rotation = cfg.INPUT.ROTATION
+        affine_translation = cfg.INPUT.TRANSLATION_FACTOR
+        affine_scale = cfg.INPUT.SCALE_FACTOR
+
+
+
     else:
         min_size = cfg.INPUT.MIN_SIZE_TEST
         max_size = cfg.INPUT.MAX_SIZE_TEST
@@ -29,6 +37,11 @@ def build_transforms(cfg, is_train=True):
         gaussian_blur_kernel = []
         gaussian_noise_prob = 0.0
         gaussian_noise_sigma = 0.0
+        affine_transform_prob = 0.0
+        affine_shear = (0.0,0.0)
+        affine_rotation = (0.0, 0.0)
+        affine_translation = (0.0, 0.0)
+        affine_scale = (1.0, 1.0)
 
     to_bgr255 = cfg.INPUT.TO_BGR255
     normalize_transform = T.Normalize(
@@ -51,12 +64,20 @@ def build_transforms(cfg, is_train=True):
         sigma=gaussian_noise_sigma
     )
 
+    affine = T.RandomAffine(
+        degrees= affine_rotation,
+        translate=affine_translation,
+        scale=affine_scale,
+        shear=affine_shear,
+        prob=affine_transform_prob
+    )
 
     transform = T.Compose(
         [
             color_jitter,
             T.Resize(min_size, max_size),
             gaussian_blur,
+            affine,
             T.RandomHorizontalFlip(flip_horizontal_prob),
             T.RandomVerticalFlip(flip_vertical_prob),
             T.ToTensor(),

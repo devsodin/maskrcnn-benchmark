@@ -214,7 +214,7 @@ def do_giana_eval(dataset_folder,
     sequences = set([mask.split("/")[-1].split("-")[0] for mask in glob(os.path.join(masks_folder, "*.tif"))])
 
     gt = coco.COCO(annot_file)
-    dt_bbox = gt.loadRes(os.path.join(output_folder, "bbox.json"))
+    dt_bbox = gt.loadRes(os.path.join(output_folder, "coco_instances_results.json"))
     det_loc_results = compute_detections_and_localizations(dt_bbox, sequences, results_folder)
 
     logger.info("Metrics calculated (GIANA Challenge)")
@@ -239,7 +239,10 @@ def do_giana_eval(dataset_folder,
 
 
 if __name__ == '__main__':
-    output_folder = "results_october/vanilla/inference/cvc-clinic-test/"
+    from argparse import ArgumentParser
+    ap = ArgumentParser()
+
+    output_folder = "/home/yael/"
     dataset_root_folder = "datasets/cvcvideoclinicdbtest"
     dataset_ann = dataset_root_folder + "/annotations/test.json"
     folder_detection = os.path.join(output_folder, "detection")

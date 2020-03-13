@@ -1,10 +1,12 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
 import random
 
+import cv2
+import numpy as np
 import torch
 import torchvision
+from PIL import Image
 from PIL import ImageFilter
-from maskrcnn_benchmark.structures.bounding_box import BoxList
 from torchvision.transforms import functional as F
 
 
@@ -89,54 +91,135 @@ class RandomGaussianBlur(object):
         return image, target
 
 
-class RandomRotation(object):
-    def __init__(self, degrees, resample=False, expand=False):
-        if degrees > 90:
-            raise ValueError("deggres must be a value between 0 ans 90")
+class RandomAffine(object):
+    def __init__(self, degrees, translate=None, scale=None, shear=None, prob=0.5):
+        self.prob = prob
+        if isinstance(degrees, int):
+            if degrees < 0:
+                raise ValueError("If degrees is a single number, it must be positive.")
+            self.degrees = (-degrees, degrees)
+        else:
+            assert isinstance(degrees, (tuple, list)) and len(degrees) == 2, \
+                "degrees should be a list or tuple and it must be of length 2."
+            self.degrees = degrees
 
-        self.degrees = degrees
-        self.resample = resample
-        self.expand = expand
-        self.angle = random.uniform(-self.degrees, self.degrees)
+        if translate is not None:
+            assert isinstance(translate, (tuple, list)) and len(translate) == 2, \
+                "translate should be a list or tuple and it must be of length 2."
+            for t in translate:
+                if not (0.0 <= t <= 1.0):
+                    raise ValueError("translation values should be between 0 and 1")
+        self.translate = translate
 
-    def bbox_rotate(self, target, angle, im_size, resample, expand):
-        print(target)
-        n_target = []
-        img_width, img_height = im_size
-        for bbox in target.bbox:
-            bbox = bbox.cpu().numpy()
-            plt.plot([bbox[0], bbox[0], bbox[2], bbox[2]],
-                     [bbox[1], bbox[3], bbox[1], bbox[3]])
+        if scale is not None:
+            assert isinstance(scale, (tuple, list)) and len(scale) == 2, \
+                "scale should be a list or tuple and it must be of length 2."
+            for s in scale:
+                if s <= 0:
+                    raise ValueError("scale values should be positive")
+        self.scale = scale
 
-            scale = img_width / float(img_height)
-            x = torch.tensor([bbox[0], bbox[2], bbox[0], bbox[2]])
-            y = torch.tensor([bbox[1], bbox[1], bbox[3], bbox[3]])
+        if shear is not None:
+            if isinstance(shear, int):
+                if shear < 0:
+                    raise ValueError("If shear is a single number, it must be positive.")
+                self.shear = (-shear, shear)
+            else:
+                assert isinstance(shear, (tuple, list)) and \
+                       (len(shear) == 2 or len(shear) == 4), \
+                    "shear should be a list or tuple and it must be of length 2 or 4."
+                # X-Axis shear with [min, max]
+                if len(shear) == 2:
+                    self.shear = [shear[0], shear[1], 0., 0.]
+                elif len(shear) == 4:
+                    self.shear = [s for s in shear]
+        else:
+            self.shear = shear
 
-            from numpy import deg2rad
-            angle = torch.tensor(deg2rad(angle))
+    @staticmethod
+    def get_params(degrees, translate, scale_ranges, shears, img_size):
+        """Get parameters for affine transformation
 
-            x_t = (torch.cos(angle) * x * scale + torch.sin(angle) * y) / scale
-            y_t = (torch.sin(angle) * x * scale + torch.cos(angle) * y)
+        Returns:
+            sequence: params to be passed to the affine transformation
+        """
+        angle = random.uniform(degrees[0], degrees[1])
+        if translate is not None:
+            max_dx = translate[0] / 100 * img_size[0]
+            max_dy = translate[1] / 100 * img_size[1]
+            translations = (np.round(random.uniform(-max_dx, max_dx)),
+                            np.round(random.uniform(-max_dy, max_dy)))
+        else:
+            translations = (0, 0)
 
-            n_target.append([x_t.min(), y_t.min(), x_t.max(), y_t.max()])
+        if scale_ranges is not None:
+            scale = random.uniform(scale_ranges[0], scale_ranges[1])
+        else:
+            scale = 1.0
 
-            plt.plot([n_target[0][0], n_target[0][0], n_target[0][2], n_target[0][2]],
-                     [n_target[0][1], n_target[0][3], n_target[0][1], n_target[0][3]])
+        if shears is not None:
+            if len(shears) == 2:
+                shear = [random.uniform(shears[0], shears[1]), 0.]
+            elif len(shears) == 4:
+                shear = [random.uniform(shears[0], shears[1]),
+                         random.uniform(shears[2], shears[3])]
+        else:
+            shear = 0.0
 
-            plt.show()
-
-            print(n_target)
-
-        return BoxList(n_target, im_size)
+        return angle, translations, scale, shear
 
     def __call__(self, img, target):
-        img = F.rotate(img, self.angle, self.resample, self.expand)
+        """
+            img (PIL Image): Image to be transformed.
 
-        plt.imshow(img)
-        rotated_bbox = self.bbox_rotate(target, self.angle, img.size, self.resample, self.expand)
+        Returns:
+            PIL Image: Affine transformed image.
+        """
+        img = np.array(img)
 
-        print(rotated_bbox)
-        return img, rotated_bbox
+        if random.random() < self.prob:
+            angle, translations, scale, shear = self.get_params(self.degrees, self.translate, self.scale, self.shear,
+                                                                img.shape)
+
+            R = np.eye(3)
+            center_y, center_x = img.shape[0] / 2, img.shape[1] / 2
+            R[:2] = cv2.getRotationMatrix2D((center_x, center_y), angle, scale)
+
+            T = np.eye(3)
+            T[0, 2] = img.shape[0] * translations[0]
+            T[1, 2] = img.shape[1] * translations[1]
+
+            S = np.eye(3)
+            import math
+            S[0, 1] = math.tan(shear[0] * math.pi / 180)
+            S[1, 0] = math.tan(shear[1] * math.pi / 180)
+
+            M = S @ T @ R
+            if (M != np.eye(3)).any():
+                # assuming that the first pixel is always part of endoscopy mask
+                bg_color_image = img[0, 0, :].tolist()
+                img = cv2.warpAffine(img, M[:2], img.shape[:2][::-1], borderMode=cv2.BORDER_CONSTANT,
+                                            borderValue=bg_color_image)
+
+
+            transformed_points = []
+            for box in target.bbox:
+                x, y, x2, y2 = box.numpy()
+                point = np.array(((x, y), (x2, y2), (x, y2)))[None, ...]
+                transformed_points.append(cv2.perspectiveTransform(point, M))
+
+            new_boxes = []
+            for box in transformed_points:
+                box = box.squeeze()
+                xy = box[0]
+                x2y2 = box[1]
+
+                new_boxes.append([xy[0], xy[1], x2y2[0], x2y2[1]])
+
+            target.bbox = torch.tensor(new_boxes)
+            target.clip_to_image()
+
+        return Image.fromarray(img), target
 
 
 class RandomGaussianNoise(object):
@@ -213,18 +296,39 @@ if __name__ == '__main__':
 
 
     def scatter_points(bbox):
-        bbox = bbox.cpu().numpy()
+        bbox = bbox
         plt.plot([bbox[0], bbox[0], bbox[2], bbox[2]],
                  [bbox[1], bbox[3], bbox[1], bbox[3]])
 
 
-    ds = CVCClinicDataset("datasets/cvc-colondb-612/annotations/train.json", "datasets/cvc-colondb-612/images/",
-                          "colon612",
-                          Compose([ToTensor(), RandomGaussianNoise(prob=1), ToPILImage()]))
+    ds = CVCClinicDataset("datasets/CVC-VideoClinicDBtrain_valid/annotations/train.json",
+                          "datasets/CVC-VideoClinicDBtrain_valid/images/",
+                          False, "colon612",
+                          transforms=Compose(
+                              [RandomAffine(prob=1., degrees=(-5, 5), translate=(0.1, 0.1), scale=(0.9, 1.1),
+                                            shear=(2, 2))]))
 
-    print(ds[0])
-    for box in ds[0][1].bbox:
-        scatter_points(box)
-    print(ds[0][1].bbox)
-    plt.imshow(ds[0][0])
-    plt.show()
+    ds_no = CVCClinicDataset("datasets/cvc-colondb-612/annotations/train.json", "datasets/cvc-colondb-612/images/",
+                             False, "colon612")
+
+    # sample = 261
+    # b = ds[sample]
+    for i in range(len(ds)):
+        b = ds[i]
+        print(b)
+
+        for box in b[1].bbox:
+            scatter_points(box)
+
+        print(b[1].bbox)
+        plt.imshow(b[0])
+        plt.show()
+
+    # a = ds[sample]
+    #
+    # for box in a[1].bbox:
+    #     scatter_points(box)
+    #
+    # print(a[1].bbox)
+    # plt.imshow(a[0])
+    # plt.show()

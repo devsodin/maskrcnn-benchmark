@@ -1,14 +1,15 @@
 import os
 from argparse import ArgumentParser
 
+import cv2
 import numpy as np
 import pandas as pd
+from PIL import Image
 from matplotlib import pyplot as plt
 from matplotlib.collections import PatchCollection
 from matplotlib.colors import ColorConverter
 from matplotlib.patches import Polygon
 from pycocotools import coco, cocoeval
-from PIL import Image
 
 
 def showAnns(coco_object, anns, color):
@@ -135,7 +136,7 @@ def show_bbox(bbox, color=None):
             [bbox_x + bbox_w, bbox_y]]
 
     if color is not None:
-        p = Polygon(poly, edgecolor=color, facecolor='none')
+        p = Polygon(poly, edgecolor=color, facecolor='none', linewidth=2.)
     else:
         p = Polygon(poly, fill=False)
 
@@ -160,7 +161,7 @@ def false_positive_metrics(gt, save_dir, mask_extension):
         pred_annots = dt_bbox.loadAnns(ids=pred_im_annots)
 
         mask_file = os.path.join(results_data['masks_folder'],
-                            gt.imgs.get(im_id)['file_name'].split(".")[0] + mask_extension)
+                                 gt.imgs.get(im_id)['file_name'].split(".")[0] + mask_extension)
         mask = plt.imread(mask_file)
 
         fig, ax = plt.subplots(1)
@@ -181,15 +182,15 @@ def false_positive_metrics(gt, save_dir, mask_extension):
                     ax.imshow(im.convert("RGB"))
                     plt.show()
                     bbox = [int(a) for a in bbox]
-                    reg = np.array(im)[bbox[1]: bbox[1] + bbox[3],bbox[0]:bbox[0] + bbox[2], :]
-                    print(reg[:,:,1])
+                    reg = np.array(im)[bbox[1]: bbox[1] + bbox[3], bbox[0]:bbox[0] + bbox[2], :]
+                    print(reg[:, :, 1])
                     print(reg.mean(), reg.std())
                     plt.imshow(reg)
                     plt.show()
                     plt.clf()
 
 
-def show_annotations_giana(gt, save_dir, mask_extension):
+def show_annotations_giana(gt, save_dir, mask_extension, threshold=0.1):
     dt_bbox = gt.loadRes(os.path.join(results_data['results_folder'].format(experiment), "bbox.json"))
 
     for image in gt.imgs.values():
@@ -206,7 +207,8 @@ def show_annotations_giana(gt, save_dir, mask_extension):
 
         subfolder = None
         fig, ax = plt.subplots(1)
-
+        pred_polygon = show_bbox(image['bbox'], color='w')
+        ax.add_patch(pred_polygon)
         if not pred_annots:
             # abscence of mask = no polyp on frame
             if mask is None:
@@ -219,23 +221,34 @@ def show_annotations_giana(gt, save_dir, mask_extension):
                 subfolder = "TN"
         else:
             for pred_annot in pred_annots:
+                score = pred_annot['score']
 
-                bbox = pred_annot['bbox']
-                center_x, center_y = int(bbox[0] + 0.5 * bbox[2]), int(bbox[1] + 0.5 * bbox[3])
+                if score >= threshold:
+                    bbox = pred_annot['bbox']
+                    center_x, center_y = int(bbox[0] + 0.5 * bbox[2]), int(bbox[1] + 0.5 * bbox[3])
 
-                if mask is None:
-                    subfolder = "FP"
-                    pred_polygon = show_bbox(pred_annot["bbox"], color='r')
-                elif mask[center_y, center_x]:
-                    pred_polygon = show_bbox(pred_annot["bbox"], color='g')
-                    subfolder = "TP"
+                    if mask is None:
+                        subfolder = "FP"
+                        pred_polygon = show_bbox(pred_annot["bbox"], color='r')
+                    elif mask[center_y, center_x]:
+                        pred_polygon = show_bbox(pred_annot["bbox"], color='gold')
+                        subfolder = "TP"
+                    else:
+                        pred_polygon = show_bbox(pred_annot["bbox"], color='r')
+                        subfolder = "FP"
+
+                    ax.add_patch(pred_polygon)
+                    ax.annotate("{:.2f}".format(pred_annot['score']), xy=pred_polygon.xy[1], annotation_clip=False,
+                                color='white')
                 else:
-                    pred_polygon = show_bbox(pred_annot["bbox"], color='r')
-                    subfolder = "FP"
-
-                ax.add_patch(pred_polygon)
-                ax.annotate("{:.2f}".format(pred_annot['score']), xy=pred_polygon.xy[1], annotation_clip=False,
-                            color='white')
+                    if mask is None:
+                        subfolder = "TN"
+                    # mask exist and has polyp on it
+                    elif mask.max() > 0:
+                        subfolder = "FN"
+                    # mask exist but is all black
+                    else:
+                        subfolder = "TN"
 
         file = os.path.join(results_data['images_folder'], gt.imgs.get(im_id)['file_name'])
         im = plt.imread(file)
@@ -248,6 +261,24 @@ def show_annotations_giana(gt, save_dir, mask_extension):
         plt.close()
 
 
+from glob import glob
+import cv2
+
+
+
+def save_images_to_video(video_images_path):
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    frames = sorted(glob(os.path.join(video_images_path, "*.png")))
+    size = cv2.imread(frames[0]).shape
+
+    out = cv2.VideoWriter(os.path.join(video_images_path, "output.avi"), fourcc, 30, (size[1], size[0]))
+
+    for frame in frames:
+        out.write(cv2.imread(frame))
+
+    out.release()
+
+
 if __name__ == '__main__':
 
     ap = ArgumentParser()
@@ -255,7 +286,7 @@ if __name__ == '__main__':
     ap.add_argument("--no_metrics", action='store_false', default=True)
     ap.add_argument("--dataset", type=str)
 
-    experiment = "results/tta_video"
+    experiment = "results_october/tuned_da_ohem_cosine_rpn"
 
     data_dict = {
         "test": {
@@ -344,7 +375,7 @@ if __name__ == '__main__':
             os.makedirs(os.path.join(save_dir, "FN"))
             os.makedirs(os.path.join(save_dir, "TN"))
 
-        #false_positive_metrics(gt, save_dir, results_data['mask_extension'])
+        # false_positive_metrics(gt, save_dir, results_data['mask_extension'])
         show_annotations_giana(gt, save_dir, results_data['mask_extension'])
 
         # save_validation_images(gt, dt_bbox, det_segm, im_ids, save_dir)

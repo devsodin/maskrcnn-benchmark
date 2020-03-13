@@ -67,8 +67,6 @@ def im_detect_bbox_aug(model, images, device, orig_images):
     for boxlist in boxlists:
         results.append(post_processor.filter_results(boxlist, cfg.MODEL.ROI_BOX_HEAD.NUM_CLASSES))
 
-    results = remove_saturated_hsv(results, orig_images)
-
     return results
 
 

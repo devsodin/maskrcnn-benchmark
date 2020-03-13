@@ -1,6 +1,6 @@
 import os
 
-from .giana_eval import do_giana_eval
+from .giana_eval import *
 
 
 def giana_eval(dataset, predictions, output_folder, **_):
@@ -11,4 +11,5 @@ def giana_eval(dataset, predictions, output_folder, **_):
     folder_gt = os.path.join(dataset_root_folder, "masks")
     do_giana_eval(output_folder, folder_detection, folder_localization, folder_gt, giana_results_folder,
                   dataset.annotation_file, dataset.name)
+
     return

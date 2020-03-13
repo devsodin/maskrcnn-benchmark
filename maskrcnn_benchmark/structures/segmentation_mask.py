@@ -1,15 +1,15 @@
-import cv2
 import copy
+
+import cv2
+import pycocotools.mask as mask_utils
 import torch
-import numpy as np
+
 from maskrcnn_benchmark.layers.misc import interpolate
 from maskrcnn_benchmark.utils import cv2_util
-import pycocotools.mask as mask_utils
 
 # transpose
 FLIP_LEFT_RIGHT = 0
 FLIP_TOP_BOTTOM = 1
-
 
 """ ABSTRACT
 Segmentations come in either:
@@ -58,8 +58,10 @@ class BinaryMaskList(object):
             if len(masks) == 0:
                 masks = torch.empty([0, size[1], size[0]])  # num_instances = 0!
             elif isinstance(masks[0], torch.Tensor):
-                masks = torch.stack(masks, dim=2).clone()
+                masks = torch.stack(masks, dim=0).clone()
             elif isinstance(masks[0], dict) and "counts" in masks[0]:
+                if isinstance(masks[0]["counts"], (list, tuple)):
+                    masks = mask_utils.frPyObjects(masks, size[1], size[0])
                 # RLE interpretation
                 rle_sizes = [tuple(inst["size"]) for inst in masks]
 
@@ -67,7 +69,7 @@ class BinaryMaskList(object):
                 masks = torch.tensor(masks).permute(2, 0, 1)  # [n, h, w]
 
                 assert rle_sizes.count(rle_sizes[0]) == len(rle_sizes), (
-                    "All the sizes must be the same size: %s" % rle_sizes
+                        "All the sizes must be the same size: %s" % rle_sizes
                 )
 
                 # in RLE, height come first in "size"
@@ -178,7 +180,7 @@ class BinaryMaskList(object):
             for entity in contour:
                 assert len(entity.shape) == 3
                 assert (
-                    entity.shape[1] == 1
+                        entity.shape[1] == 1
                 ), "Hierarchical contours are not allowed"
                 reshaped_contour.append(entity.reshape(-1).tolist())
             contours.append(reshaped_contour)
@@ -439,7 +441,7 @@ class PolygonList(object):
             )
         else:
             size = self.size
-            masks = torch.empty([0, size[1], size[0]], dtype=torch.uint8)
+            masks = torch.empty([0, size[1], size[0]], dtype=torch.bool)
 
         return BinaryMaskList(masks, size=self.size)
 
@@ -454,7 +456,8 @@ class PolygonList(object):
         else:
             # advanced indexing on a single dimension
             selected_polygons = []
-            if isinstance(item, torch.Tensor) and item.dtype == torch.uint8:
+            if isinstance(item, torch.Tensor) and \
+                    (item.dtype == torch.uint8 or item.dtype == torch.bool):
                 item = item.nonzero()
                 item = item.squeeze(1) if item.numel() > 0 else item
                 item = item.tolist()
@@ -474,7 +477,6 @@ class PolygonList(object):
 
 
 class SegmentationMask(object):
-
     """
     This class stores the segmentations for all objects in the image.
     It wraps BinaryMaskList and PolygonList conveniently.
